@@ -31,7 +31,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | SYL-2 | Looser sound matching (stress / vowel tolerance) | Quality | M | P1 | SYL-1 |
 | SYL-3 | "Secrecy level" setting: allow word-part carriers ("origin" + "lee") | Quality | M | P1 | SYL-2 |
 | POL-1 | Tune the completeness check on real recordings | Polish | M | P2 | TOOL-1 |
-| POL-2 | Safari / iPhone recording support | Polish | M | P2 | — |
+| POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
 | POL-3 | Better masked sentences (fewer word-list fallbacks) | Polish | M | P2 | — |
 | POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
 | POL-5 | Friendlier error & edge-case screens | Polish | S | P2 | — |
@@ -50,14 +50,14 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → POL-2 → POL-5 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → POL-5 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
 4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -374,9 +374,17 @@ gain at Medium/Low.
 Use the TOOL-1 fixtures (partial, skipped word, mumbled, silence, good) as regression tests;
 adjust the thresholds in `config.py` so good takes always pass and bad ones never do.
 
-### POL-2 · Safari / iPhone recording support  `M · P2`
+### POL-2 · Safari / iPhone recording support  `M · ✅ Done`
 Test the record flow in Safari (records MP4 rather than WebM) and on an iPhone (needs HTTPS:
 use a tunnel for local testing). Fix any upload, orientation or playback issues.
+
+**Result:** fixes for Safari's audio rules (start audio inside the Record tap), MP4 recording
+without timeslices, preview/review/reveal shaped like the real video (portrait on phones), review
+playback no longer mirrored (the flip was mirroring the controls too), and `make tunnel`
+(Cloudflare quick tunnel) for phone tests, with the tuning page refusing tunnel/proxy requests.
+Portrait, rotation-tagged and fragmented MP4 uploads render upright. **Tested by you:** Android
+Chrome (via tunnel) and Safari on the Mac, full flow working. **Not yet tried:** a real iPhone;
+worth a quick check once hosted.
 
 ### POL-3 · Better masked sentences  `M · P2`
 Long sentences sometimes fall back to plain word lists. Try smaller groups per phrase, a

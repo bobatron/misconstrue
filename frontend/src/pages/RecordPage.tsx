@@ -194,7 +194,7 @@ export default function RecordPage() {
     case 'review':
       return (
         <main className="page">
-          <div className="stage" style={stageStyle}><video className="camera mirrored" src={stage.url} controls playsInline onLoadedMetadata={fitToVideo} /></div>
+          <div className="stage" style={stageStyle}><video className="camera" src={stage.url} controls playsInline onLoadedMetadata={fitToVideo} /></div>
           <p className="muted small">Happy with it?</p>
           <div className="button-row">
             <button className="secondary" onClick={() => setStage({ name: 'ready', retake: stage.retake })}>Retake</button>

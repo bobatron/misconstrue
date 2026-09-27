@@ -129,6 +129,9 @@ button.stop { background: var(--text); color: var(--bg); }
   margin: 0 auto;
 }
 .camera { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Live camera only: a mirror image feels natural while looking at yourself. Never on videos
+   with controls (the flip would mirror the controls too); recordings play the right way round,
+   as the friend will see them. */
 .mirrored { transform: scaleX(-1); }
 .rec-dot {
   position: absolute; top: 12px; left: 12px;
