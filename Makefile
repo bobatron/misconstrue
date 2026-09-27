@@ -1,5 +1,5 @@
 CONDA ?= $(shell command -v conda 2>/dev/null || echo /opt/homebrew/Caskroom/miniforge/base/bin/conda)
-ENV_BIN := $(shell dirname $(CONDA))/../envs/misconstrue/bin
+ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
