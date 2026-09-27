@@ -48,8 +48,9 @@ class Settings(BaseModel):
 
     # ── Masking ────────────────────────────────────────────────────────────────
     LLM_PROVIDER: Literal["ollama", "none"] = setting(
-        "ollama", "masking",
-        "Which AI writes natural phrases around the carrier words. 'none' = plain word lists.")
+        "none", "masking",
+        "'none' (default) = the disguise is just the carrier words, shown one at a time: instant. 'ollama' = a "
+        "local AI wraps them in natural phrases (slower, needs Ollama running).")
     OLLAMA_MODEL: str = setting(
         "qwen3:8b", "masking", "Ollama model to use (must be pulled: `ollama pull <name>`).")
     LLM_CANDIDATES: int = setting(
@@ -93,7 +94,7 @@ class Settings(BaseModel):
 
     # ── Recording ──────────────────────────────────────────────────────────────
     WORDS_PER_PROMPT: int = setting(
-        3, "recording", "Words shown at a time while recording. 1 = one word at a time; 2-3 keeps short words "
+        1, "recording", "Words shown at a time while recording. 1 = one word at a time; 2-3 keeps short words "
         "sounding natural ('the', not 'thee').", ge=1, le=8)
     ADVANCE_SILENCE_MS: float = setting(
         600, "recording", "How long a pause (ms) after speaking moves on to the next prompt. Longer = fewer "

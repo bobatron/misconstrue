@@ -43,17 +43,19 @@ class GateResult:
     heard_text: str = ""
 
 
-@lru_cache(maxsize=1)
-def _whisper():
+@lru_cache(maxsize=2)
+def _whisper(model: str | None = None):
     from faster_whisper import WhisperModel
 
-    return WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
+    return WhisperModel(model or config.WHISPER_MODEL, device="cpu", compute_type="int8")
 
 
-def transcribe(wav_16k: Path) -> list[Heard]:
+def transcribe(wav_16k: Path, model: str | None = None) -> list[Heard]:
+    """What was said, with word timings. `model` overrides WHISPER_MODEL (the clarity score uses a
+    fixed one so scores stay comparable when the retake check's model changes)."""
     # No initial prompt on purpose: priming with the masked text would let Whisper "hear" words
     # that were never said.
-    segments, _ = _whisper().transcribe(
+    segments, _ = _whisper(model).transcribe(
         str(wav_16k), language="en", word_timestamps=True, vad_filter=True, condition_on_previous_text=False
     )
     heard: list[Heard] = []

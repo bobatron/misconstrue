@@ -42,7 +42,7 @@ export default function CreatePage() {
         <h1 className="logo">misconstrue</h1>
         <section className="card">
           <h2>1. Send this to a friend</h2>
-          <p className="muted">They'll be asked to read an innocent-looking sentence…</p>
+          <p className="muted">They'll be asked to say a few "calibration" words, one at a time…</p>
           <CopyField value={result.shareUrl} label="Link for your friend" />
           {'share' in navigator && (
             <button className="secondary wide" onClick={share}>
@@ -50,7 +50,7 @@ export default function CreatePage() {
             </button>
           )}
           <button className="link" onClick={() => setPeek(!peek)}>
-            {peek ? 'Hide' : 'Peek at'} what they'll read
+            {peek ? 'Hide' : 'Peek at'} the words they'll say
           </button>
           {peek && <blockquote className="masked">{result.masked}</blockquote>}
         </section>
@@ -87,12 +87,12 @@ export default function CreatePage() {
         />
         {error && <p className="error">{error}</p>}
         <button className="wide" disabled={busy || !text.trim()}>
-          {busy ? 'Writing a disguise… (10–20 s)' : 'Create link'}
+          {busy ? 'Creating…' : 'Create link'}
         </button>
       </form>
       <p className="muted small">
-        We'll write a different sentence that secretly contains all the sounds of yours. When your friend reads it on
-        camera, we cut it up to make them say your sentence.
+        We pick different words that secretly contain all the sounds of yours. When your friend says them on camera,
+        we cut them up to make them say your sentence.
       </p>
       {links.length > 0 && (
         <section className="card">

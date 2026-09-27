@@ -88,7 +88,7 @@ export default function ResultsPage() {
         <h2>{done.length ? 'Send it to someone else?' : 'Not sent it yet?'}</h2>
         <p className="muted small">This is the link for your friend (not this page):</p>
         <CopyField value={`${window.location.origin}/c/${results.slug}`} label="Link for your friend" />
-        <p className="muted small">They'll read: “{results.masked_text}”</p>
+        <p className="muted small">They'll say: {results.masked_text}</p>
       </section>
       <Link className="link" to="/">Make another</Link>
     </main>

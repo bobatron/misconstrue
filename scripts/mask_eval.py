@@ -1,5 +1,6 @@
-"""How good are the masked sentences? Masks a fixed set of sentences and reports how many phrase
-groups fell back to plain word lists, why the LLM's phrases were rejected, and timing.
+"""How good are the disguises? Masks a fixed set of sentences and reports how many words User 2
+has to say, timing, and (with the optional LLM on) how many phrase groups fell back to plain
+word lists and why the LLM's phrases were rejected.
 
   make mask-eval                      # all sentences
   make mask-eval ARGS="--set LLM_GROUPS_PER_PHRASE=2"
@@ -56,6 +57,7 @@ def main() -> None:
     totals = {"groups": 0, "fallbacks": 0, "rejected": {}}
     fully_natural = 0
     times = []
+    word_counts = []
     for text in SENTENCES:
         t = time.perf_counter()
         r = masker.mask(text, seed=args.seed)
@@ -65,14 +67,18 @@ def main() -> None:
         totals["fallbacks"] += s.get("fallbacks", 0)
         for k, v in s.get("rejected", {}).items():
             totals["rejected"][k] = totals["rejected"].get(k, 0) + v
+        n_words = len(r.masked_text.split())
+        word_counts.append(n_words)
         natural = r.source == "llm" and not s.get("fallbacks")
         fully_natural += natural
-        mark = "✓" if natural else f"{s.get('fallbacks', '?')}/{s.get('groups', '?')} lists"
+        mark = f"{n_words} words" if r.source == "template" else "✓" if natural else f"{s.get('fallbacks')}/{s.get('groups')} lists"
         print(f"{times[-1]:5.1f}s  {mark:10} {len(r.spans):2} cuts  {text!r}\n        → {r.masked_text}")
     g, f = totals["groups"], totals["fallbacks"]
-    print(f"\nFully natural sentences: {fully_natural}/{len(SENTENCES)}")
-    print(f"Phrase groups that fell back to a word list: {f}/{g} ({100 * f / max(g, 1):.0f}%)")
-    print("Why LLM phrases were rejected:", ", ".join(f"{k}: {v}" for k, v in sorted(totals["rejected"].items(), key=lambda x: -x[1])))
+    print(f"\nWords to say: {sum(word_counts) / len(word_counts):.1f} on average, {max(word_counts)} at most")
+    if g:
+        print(f"Fully natural sentences (LLM): {fully_natural}/{len(SENTENCES)}")
+        print(f"Phrase groups that fell back to a word list: {f}/{g} ({100 * f / max(g, 1):.0f}%)")
+        print("Why LLM phrases were rejected:", ", ".join(f"{k}: {v}" for k, v in sorted(totals["rejected"].items(), key=lambda x: -x[1])))
     print(f"Time per sentence: {sum(times) / len(times):.1f}s average, {max(times):.1f}s worst")
 
 

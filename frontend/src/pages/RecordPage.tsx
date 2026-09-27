@@ -148,8 +148,8 @@ export default function RecordPage() {
         <main className="page">
           <h1 className="logo">misconstrue</h1>
           <section className="card">
-            <h2>A friend needs your voice</h2>
-            <p>Some words will pop up on screen, a few at a time. Just say them out loud. It takes about half a minute.</p>
+            <h2>Quick voice calibration</h2>
+            <p>A friend needs a few words in your voice to calibrate the system. Words will pop up on screen one at a time: just say each one out loud. It takes about half a minute.</p>
             <p className="muted small">The person who sent you this link will see the video.</p>
             {rec.error && <p className="error">{rec.error}</p>}
             <button className="wide" onClick={async () => (await rec.start()) && setStage({ name: 'ready' })}>
@@ -200,7 +200,7 @@ export default function RecordPage() {
           {recording ? (
             <>
               <p className="muted small center-text">
-                {prompter.hint ? "Say it out loud, or tap Next if you already have." : 'Say each one clearly, then pause. It moves on by itself.'}
+                {prompter.hint ? "Say it out loud, or tap Next if you already have." : 'Say each word clearly, then pause. It moves on by itself.'}
               </p>
               <div className="button-row">
                 <button className="secondary" onClick={prompter.back} disabled={prompter.phase !== 'prompting' || prompter.index === 0}>← Back</button>
@@ -211,8 +211,8 @@ export default function RecordPage() {
           ) : (
             <>
               <p className="muted small">
-                When you press record, words appear on the video a few at a time. Say each group out loud, clearly,
-                then pause: it moves on by itself. ({prompts.length} to go)
+                When you press record, words appear on the video one at a time. Say each one out loud, clearly, then
+                pause: it moves on by itself. ({prompts.length} words)
               </p>
               <button className="wide record" onClick={() => startRecording(retake)}>● Record</button>
             </>

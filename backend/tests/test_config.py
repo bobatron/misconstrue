@@ -18,7 +18,7 @@ def _load(tmp_path, monkeypatch, text, env=None):
 
 def test_defaults_without_env_file(tmp_path, monkeypatch):
     s = _load(tmp_path, monkeypatch, "")
-    assert s.MAX_RETAKES == 5 and s.LLM_PROVIDER == "ollama"
+    assert s.MAX_RETAKES == 5 and s.LLM_PROVIDER == "none"
 
 
 def test_env_file_overrides_defaults(tmp_path, monkeypatch):

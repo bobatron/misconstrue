@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 
 from app import config
 from app.core import phonetics
-from app.core.phonetics import Carrier, Phone
+from app.core.phonetics import FUNCTION_WORDS, Carrier, Phone
 from app.core.splice import Span, cut_penalty, plan_splice
 
 
@@ -32,17 +32,6 @@ class MaskResult:
     chunks: list[Chunk] = field(default_factory=list)
     source: str = "template"  # "llm" or "template"
     stats: dict = field(default_factory=dict)  # phrase groups tried / fell back, why LLM phrases were rejected
-
-
-# Words so common that seeing them in the disguise gives nothing away ("the", "I"). Banning them
-# whenever the target contains them rejected many good LLM phrases. Negations aren't here: "not"
-# changes a sentence's meaning, so it stays hidden.
-FUNCTION_WORDS = {
-    "a", "an", "the", "i", "me", "my", "you", "your", "we", "our", "us", "he", "him", "his", "she", "her",
-    "it", "its", "they", "them", "their", "is", "are", "was", "were", "be", "been", "am", "do", "does", "did",
-    "have", "has", "had", "to", "of", "in", "on", "at", "for", "with", "by", "from", "as", "and", "or", "but",
-    "so", "if", "that", "this", "these", "those", "there", "here", "then", "than", "up", "out", "all",
-}
 
 
 SUFFIXES = ("ingly", "edly", "ness", "ing", "ies", "ers", "est", "ful", "ish", "ed", "es", "er", "ly", "s", "y", "e")
@@ -151,9 +140,11 @@ def score_candidate(target: list[Phone], text: str, forbidden: Forbidden) -> tup
 
 
 def template_sentence(chunks: list[Chunk], rng: random.Random) -> str:
+    """The default disguise: just the carrier words, shuffled so their order gives nothing away.
+    The prompter shows them one at a time ("calibration words")."""
     words = list(dict.fromkeys(ch.carriers[0] for ch in chunks))
     rng.shuffle(words)
-    return (", ".join(words) + ".").capitalize()
+    return " ".join(words)
 
 
 def _phrase_problem(phrase: str, groups: list[Chunk], forbidden: Forbidden) -> str | None:
@@ -173,74 +164,38 @@ def _phrase_problem(phrase: str, groups: list[Chunk], forbidden: Forbidden) -> s
 def llm_sentence(
     chunks: list[Chunk], forbidden: Forbidden, banned: list[str], rng: random.Random, stats: dict | None = None
 ) -> str | None:
-    """Hide the chunks' carrier words in a few LLM-written phrases, in shuffled order.
+    """Optional (LLM_PROVIDER=ollama): hide the carrier words in LLM-written phrases.
 
-    Small local models can't juggle many word groups at once, so each phrase only covers a few
-    chunks. A batch the LLM can't manage is retried one group at a time (single-word phrases are
-    much easier), and only then falls back to plain carrier words. Requests run in parallel.
+    One request per batch of a few word groups; a batch the LLM can't manage falls back to its
+    plain carrier words. (A version that retried each word until it fitted made every sentence
+    natural but took 10-30 s per link; not worth it now the prompter shows a word at a time.)
     """
+    from app.core import llm
+
     order = chunks[:]
     rng.shuffle(order)  # don't let phrase order follow the target sentence
     stats = stats if stats is not None else {}
-    stats.setdefault("groups", 0)
-    stats.setdefault("fallbacks", 0)
-    stats.setdefault("retried", 0)
-    stats.setdefault("rejected", {})
+    stats.update(groups=0, fallbacks=0, rejected={})
+    parts = []
     step = config.LLM_GROUPS_PER_PHRASE
-    batches = [order[b : b + step] for b in range(0, len(order), step)]
-    seeds = [rng.randrange(1 << 30) for _ in batches]
-
-    first = _ask_batches(batches, seeds, forbidden, banned, stats)
-    parts: list[str | None] = list(first)
-    # Retry failed multi-group batches one group at a time.
-    retry = [(i, g) for i, (batch, phrase) in enumerate(zip(batches, first)) if phrase is None and len(batch) > 1 for g in batch]
-    if retry:
-        stats["retried"] += len({i for i, _ in retry})
-        singles = _ask_batches([[g] for _, g in retry], [rng.randrange(1 << 30) for _ in retry], forbidden, banned, stats)
-        by_batch: dict[int, list[str]] = {}
-        for (i, g), phrase in zip(retry, singles):
-            by_batch.setdefault(i, []).append(phrase or g.carriers[0])
-            if phrase is None:
-                stats["fallbacks"] += 1
-        for i, pieces in by_batch.items():
-            parts[i] = ", ".join(pieces) if any("," in x or " " not in x for x in pieces) and len(pieces) > 1 else ". ".join(pieces)
-    for i, (batch, phrase) in enumerate(zip(batches, parts)):
-        stats["groups"] += 1
-        if phrase is None:  # a single-group batch the LLM couldn't manage
-            stats["fallbacks"] += 1
-            parts[i] = batch[0].carriers[0]
-    used_llm = any(p is not None for p in first) or stats["fallbacks"] < sum(len(b) for b in batches)
-    if not used_llm:
-        return None
-    return ". ".join(p[0].upper() + p[1:] for p in parts if p) + "."
-
-
-def _ask_batches(
-    batches: list[list[Chunk]], seeds: list[int], forbidden: Forbidden, banned: list[str], stats: dict
-) -> list[str | None]:
-    """The shortest valid LLM phrase for each batch (None if none worked), asked in parallel."""
-    from concurrent.futures import ThreadPoolExecutor
-
-    from app.core import llm
-
-    def ask(batch: list[Chunk], seed: int) -> tuple[str | None, dict]:
-        rejected: dict = {}
+    for b in range(0, len(order), step):
+        batch = order[b : b + step]
         valid = []
-        for phrase in llm.phrases([g.carriers for g in batch], banned, random.Random(seed)):
+        for phrase in llm.phrases([g.carriers for g in batch], banned, rng):
             problem = _phrase_problem(phrase, batch, forbidden)
             if problem:
-                rejected[problem] = rejected.get(problem, 0) + 1
+                stats["rejected"][problem] = stats["rejected"].get(problem, 0) + 1
             else:
                 valid.append(phrase)
-        best = min(valid, key=lambda p: len(phonetics.tokenize(p))).rstrip(".!?,;") if valid else None
-        return best, rejected
-
-    with ThreadPoolExecutor(max_workers=max(1, min(4, len(batches)))) as pool:
-        results = list(pool.map(ask, batches, seeds))
-    for _, rejected in results:
-        for k, v in rejected.items():
-            stats["rejected"][k] = stats["rejected"].get(k, 0) + v
-    return [phrase for phrase, _ in results]
+        stats["groups"] += 1
+        if valid:
+            parts.append(min(valid, key=lambda p: len(phonetics.tokenize(p))).rstrip(".!?,;"))
+        else:
+            stats["fallbacks"] += 1
+            parts.append(", ".join(g.carriers[0] for g in batch))
+    if stats["fallbacks"] == stats["groups"]:
+        return None
+    return ". ".join(p[0].upper() + p[1:] for p in parts) + "."
 
 
 def mask(target_text: str, use_llm: bool = True, seed: int | None = None) -> MaskResult:
@@ -253,7 +208,7 @@ def mask(target_text: str, use_llm: bool = True, seed: int | None = None) -> Mas
     rng = random.Random(seed)
 
     stats: dict = {}
-    if use_llm:
+    if use_llm and config.LLM_PROVIDER != "none":
         text = llm_sentence(chunks, forbidden, target_words, rng, stats)
         scored = score_candidate(target, text, forbidden) if text else None
         if text and scored:

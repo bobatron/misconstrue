@@ -8,6 +8,10 @@ from pathlib import Path
 
 from app.core import phonetics, verify_read
 
+# The "listener" for clarity scores. Fixed, so scores stay comparable even when the retake
+# check's Whisper model (WHISPER_MODEL) is changed.
+JUDGE_MODEL = "small.en"
+
 
 @dataclass
 class Clarity:
@@ -30,7 +34,7 @@ def clarity(video: Path, target_text: str) -> Clarity:
     with tempfile.TemporaryDirectory() as tmp:
         wav = Path(tmp) / "out.wav"
         subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-ac", "1", "-ar", "16000", str(wav)], check=True)
-        heard = verify_read.transcribe(wav)
+        heard = verify_read.transcribe(wav, model=JUDGE_MODEL)
     return score_text(target_text, " ".join(h.word for h in heard))
 
 

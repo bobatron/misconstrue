@@ -131,6 +131,17 @@ class Carrier:
     zipf: float
 
 
+# Tiny, very common words ("the", "I", "of"). Never carriers: said on their own they change sound
+# ("thee", "ay"), and the prompter shows one word at a time. Not secret either: seeing them gives
+# nothing away. Negations aren't here: "not" changes a sentence's meaning, so it stays hidden.
+FUNCTION_WORDS = {
+    "a", "an", "the", "i", "me", "my", "you", "your", "we", "our", "us", "he", "him", "his", "she", "her",
+    "it", "its", "they", "them", "their", "is", "are", "was", "were", "be", "been", "am", "do", "does", "did",
+    "have", "has", "had", "to", "of", "in", "on", "at", "for", "with", "by", "from", "as", "and", "or", "but",
+    "so", "if", "that", "this", "these", "those", "there", "here", "then", "than", "up", "out", "all",
+}
+
+
 WORD_LIST = Path("/usr/share/dict/words")  # on Debian/Ubuntu: apt install wamerican
 
 
@@ -172,7 +183,7 @@ def carrier_index() -> dict[tuple[str, ...], list[Carrier]]:
             continue
         if word in names and zipf_frequency(word, "en") < NAME_UNLESS_ZIPF:
             continue
-        if not word.isalpha() or word in BLOCKED_CARRIERS or (len(word) == 1 and word not in ("a", "i")):
+        if not word.isalpha() or word in BLOCKED_CARRIERS or word in FUNCTION_WORDS or len(word) == 1:
             continue
         z = zipf_frequency(word, "en")
         if z < config.MIN_CARRIER_ZIPF:
