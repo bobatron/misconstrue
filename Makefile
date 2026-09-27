@@ -3,7 +3,7 @@ ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
-.PHONY: setup models test mask dev api web settings env-example bench fixtures cli
+.PHONY: setup models test mask dev api web settings env-example bench fixtures cli tunnel
 
 setup:  ## create the Python env, download speech models, pull the local LLM
 	$(CONDA) env update -f backend/environment.yml --prune
@@ -33,6 +33,9 @@ fixtures:  ## import recordings as benchmark fixtures: make fixtures ARGS="tjqn5
 
 cli:  ## the command-line tool: make cli ARGS='mask "hello there"'
 	$(PY) scripts/cli.py $(ARGS)
+
+tunnel:  ## temporary public https address for testing on a phone (needs `make dev` running; Ctrl-C to stop)
+	cloudflared tunnel --no-autoupdate --url http://localhost:5173
 
 mask:  ## make mask TEXT="hello sir"
 	$(PY) scripts/cli.py mask "$(TEXT)"

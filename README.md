@@ -35,6 +35,16 @@ make test
 Open http://localhost:5173, type a sentence, and open the link it gives you (in another
 window, or send it to a friend on the same machine for now).
 
+### Testing on a phone
+Phones only allow the camera over HTTPS, so use a temporary Cloudflare tunnel
+(`brew install cloudflared` once):
+```sh
+make dev      # in one terminal
+make tunnel   # in another: prints https://<random-words>.trycloudflare.com; Ctrl-C to stop
+```
+Open that address on the phone. It's public while the tunnel runs (but random), and the
+tuning page refuses requests that come through it.
+
 ### Settings
 The quickest way to tune is the **tuning page** at http://localhost:5173/tune: change settings,
 re-render any saved recording in a couple of seconds, and compare the results side by side.
