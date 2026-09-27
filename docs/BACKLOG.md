@@ -17,7 +17,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2) | Performance | M | P2 | TOOL-1 |
 | PERF-4b | Ship the in-memory aligner behind a setting | Performance | M | P3 | PERF-4a |
 | PERF-5 | Load Whisper at startup, not on first upload | Performance | S | P1 | — |
-| QUAL-1 | 🟡 Slow down the final sentence (time-stretch): built, needs a listening test | Quality | M | **P0** | TOOL-1 |
+| QUAL-1 | ✅ Slow down the final sentence (time-stretch) | Quality | M | Done | TOOL-1 |
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
 | QUAL-4 | Ask the reader to speak slowly and clearly | Quality | S | P1 | — |
@@ -41,7 +41,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → ~~QUAL-1~~ → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -168,7 +168,7 @@ index. Small, but free.
 Feedback: sounds in the final video are sometimes very short, making the sentence hard to
 follow. Four complementary fixes, each measurable with TOOL-1.
 
-### QUAL-1 · Slow down the final sentence  `M · 🟡 Built, needs a listening test`
+### QUAL-1 · Slow down the final sentence  `M · ✅ Done`
 **Do:**
 - Stretch the stitched audio to play slower **without changing pitch** (e.g. ffmpeg's
   `atempo`, or the Rubber Band library for better quality). Setting: `PLAYBACK_SPEED`,
@@ -185,7 +185,11 @@ within one frame. Defaults leave behaviour unchanged.
 **Measured (7 good fixtures, Whisper):** no clear effect. Averages moved by only a few points
 either way (speed 0.8: 58% words / 74% sounds vs 58% / 76% at 1.0) while single fixtures swung
 widely, i.e. within noise. Whisper is trained on normal-speed speech, so it's a poor judge
-here. **Next:** listen on /tune (try 0.8, and 0.8 + MIN_PIECE_MS 150), then set the default.
+here.
+**Decided by ear:** you found it "worked well" at PLAYBACK_SPEED 0.6 + MIN_PIECE_MS 300 (the top
+of the range at the time), so those are now the defaults; ranges widened to 0.4-1.0 and 0-600 ms
+for further experiments. New baseline at these defaults: retake check 15/15, clarity 50% words /
+69% sounds (vs 53% / 68%: unchanged per Whisper), 19.0 s per video (render +0.6 s).
 
 ### QUAL-2 · Short pauses between words  `S · P1`
 Insert a small gap (setting `WORD_GAP_MS`, e.g. 60–120 ms) between the words of the target

@@ -178,10 +178,11 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 3. **Make the video follow the audio.** For every frame of the output, the app shows the
    frame of the original recording from the moment the current sound was spoken. That
    keeps the lips in sync with the audio. The jumpy look is part of the fun.
-4. **Slow it down (optional).** `PLAYBACK_SPEED` below 1.0 stretches each piece so the sentence
-   plays slower *without changing the pitch* (the voice doesn't get deeper). It works by laying
+4. **Slow it down.** By default the sentence plays at 60% speed (`PLAYBACK_SPEED` 0.6, chosen by
+   ear: much easier to follow). Each piece is stretched *without changing the pitch* (the voice
+   doesn't get deeper). It works by laying
    short overlapping snippets of the sound further apart, each nudged a few milliseconds so the
-   waveform lines up. `MIN_PIECE_MS` stretches very short pieces extra. The video slows down
+   waveform lines up. `MIN_PIECE_MS` (default 300 ms) stretches very short pieces extra, up to 2×. The video slows down
    with each piece, repeating frames, so the lips stay in sync.
 5. **Finish.** [ffmpeg](https://ffmpeg.org) (a video toolkit) encodes the final MP4 and adds
    the "misconstrued" watermark.
@@ -190,7 +191,7 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 
 ## How long does it take?
 
-About **18 seconds** per video (averaged over 9 of your recordings with `make bench`):
+About **19 seconds** per video (averaged over 9 of your recordings with `make bench`):
 
 | Step | Before PERF-1 | Now |
 |---|---|---|

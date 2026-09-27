@@ -91,11 +91,11 @@ class Settings(BaseModel):
 
     # ── Output video ───────────────────────────────────────────────────────────
     PLAYBACK_SPEED: float = setting(
-        1.0, "video", "How fast the finished sentence plays compared with how it was spoken (1.0 = as recorded, "
-        "0.8 = 20% slower). The pitch doesn't change, and the video slows down with it.", ge=0.5, le=1.0)
+        0.6, "video", "How fast the finished sentence plays compared with how it was spoken (1.0 = as recorded, "
+        "0.6 = 40% slower). The pitch doesn't change, and the video slows down with it.", ge=0.4, le=1.0)
     MIN_PIECE_MS: float = setting(
-        0, "video", "After slowing down, sound pieces shorter than this (ms) are stretched further, up to 2x, so "
-        "very short sounds are easier to hear. 0 = off.", ge=0, le=300)
+        300, "video", "After slowing down, sound pieces shorter than this (ms) are stretched further, up to 2x, so "
+        "very short sounds are easier to hear. 0 = off.", ge=0, le=600)
     CROSSFADE_MS: float = setting(
         8, "video", "Overlap between stitched sound pieces (ms). Longer = smoother but blurrier.", ge=0, le=50)
     SNAP_WINDOW_MS: float = setting(
