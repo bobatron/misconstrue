@@ -22,3 +22,7 @@ data/*
 
 # Env
 .env
+
+# Benchmark fixtures are real people's faces and voices: keep them local
+backend/tests/fixtures/*
+!backend/tests/fixtures/README.md

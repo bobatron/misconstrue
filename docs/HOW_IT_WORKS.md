@@ -239,6 +239,34 @@ Typos and out-of-range values stop the app at startup with a clear message (e.g.
 "MAX_RETAKE: did you mean MAX_RETAKES?"), so a mistake is never silently ignored. An
 environment variable with the same name overrides `.env`.
 
+## Measuring changes (the benchmark)
+
+Tuning by ear is unreliable, so `make bench` measures instead. It runs saved recordings
+through the whole pipeline and reports, for each one:
+
+- **Time per step:** convert, transcribe, align, plan, render.
+- **Was the retake check right?** Each recording is labelled "good" (should make a video) or
+  "bad" (should be rejected).
+- **Clarity score:** Whisper listens to the *finished* video, and we count how many words
+  of the intended sentence it heard correctly (sound-alikes like "I"/"eye" count). 100% =
+  every word understood.
+
+Results are compared against a saved **baseline**, marked ✓ (better) or ✗ (worse), and the
+output videos are kept in `data/bench/<time>/` so you can watch them.
+
+```sh
+make bench                                          # everything
+make bench ARGS="--good"                            # only takes that should render
+make bench ARGS="--set CROSSFADE_MS=12"             # try a setting without editing .env
+make bench ARGS="--save-baseline"                   # make this run the new reference
+python scripts/bench.py import 30 31                # add new recordings as fixtures
+```
+
+The recordings stay on your computer (git-ignored), because they're people's faces and voices.
+
+Whisper is a stand-in for a human listener: it's consistent and quick, but a person may
+hear a video differently. Treat the score as a guide, and watch the videos too.
+
 ## Map of the code
 
 ```
@@ -256,9 +284,11 @@ backend/app/
     aligner.py       runs MFA to get sound timings
     editor.py        cuts, crossfades, and assembles the new video
     media.py         ffmpeg helpers
-    pipeline.py      runs steps 2–4 in order
+    pipeline.py      runs steps 2–4 in order, timing each step
+    scoring.py       clarity score for a finished video
 frontend/src/
   pages/CreatePage.tsx   User 1: type a sentence, get a link
   pages/RecordPage.tsx   User 2: camera, teleprompter, retakes, reveal
 scripts/cli.py         run everything from the terminal (handy for testing)
+scripts/bench.py       benchmark: speed, retake-check accuracy, clarity score
 ```

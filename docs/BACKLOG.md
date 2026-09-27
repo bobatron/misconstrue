@@ -9,7 +9,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 |---|---|---|---|---|---|
 | BUG-1 | ✅ Turn camera & mic off after submitting | Bug | S | Done | — |
 | CONFIG-1 | ✅ Editable settings file (`.env`) | Tooling | S | Done | — |
-| TOOL-1 | Benchmark + intelligibility test harness | Tooling | M | **P0** | — |
+| TOOL-1 | ✅ Benchmark + intelligibility test harness | Tooling | M | Done | — |
 | CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
 | PERF-1 | Mini pronunciation dictionary per recording | Performance | S | **P0** | TOOL-1 (to measure) |
 | PERF-2 | Reuse MFA's cache between runs | Performance | S | P1 | PERF-1 |
@@ -41,7 +41,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -64,7 +64,7 @@ retakes still work.
 
 ## Tooling
 
-### TOOL-1 · Benchmark + intelligibility test harness  `M · P0`
+### TOOL-1 · Benchmark + intelligibility test harness  `M · ✅ Done`
 The foundation for tuning speed and quality without guessing.
 **Do:**
 - Save a set of reference recordings in `backend/tests/fixtures/` (your real takes, good and
@@ -74,6 +74,11 @@ The foundation for tuning speed and quality without guessing.
   close it is to the target sentence (word error rate).
 - Prints a before/after table so every change below can prove it helped.
 **Done when:** one command prints timing + intelligibility for all fixtures.
+
+**Baseline (27 Sep 2026, 17 of your recordings):** retake check 15/15 correct · clarity
+53% (words) / 68% (sounds) over 9 videos, range 0–86% · 48 s per video, of which align 43 s.
+Two fixtures (r26, r27) are unlabelled: they passed the check when re-run, so they may be
+good takes. r26 scored 0%, worth a look.
 
 ### CONFIG-1 · Editable settings file  `S · ✅ Done`
 **Do:**

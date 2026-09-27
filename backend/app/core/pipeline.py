@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +19,20 @@ class PipelineResult:
     message: str = ""
     missing: list[int] = field(default_factory=list)
     output: Path | None = None
+    timings: dict[str, float] = field(default_factory=dict)  # seconds per step
+
+
+class _Timer:
+    def __init__(self) -> None:
+        self.steps: dict[str, float] = {}
+
+    @contextmanager
+    def __call__(self, step: str):
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            self.steps[step] = round(time.perf_counter() - start, 3)
 
 
 def _critical_words(spans, phones) -> set[int]:
@@ -26,12 +42,26 @@ def _critical_words(spans, phones) -> set[int]:
 
 def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool = False) -> PipelineResult:
     """`force`: after too many retakes, render whatever we can instead of asking again."""
+    timer = _Timer()
+    start = time.perf_counter()
+    result = _run(video, masked_text, target_text, workdir, out, force, timer)
+    result.timings = {**timer.steps, "total": round(time.perf_counter() - start, 3)}
+    log.info("%s in %.1fs: %s", result.status, result.timings["total"],
+             ", ".join(f"{k} {v:.1f}s" for k, v in timer.steps.items()))
+    return result
+
+
+def _run(
+    video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool, timer: _Timer
+) -> PipelineResult:
     try:
-        norm = media.normalise(video, workdir)
+        with timer("normalise"):
+            norm = media.normalise(video, workdir)
     except media.MediaError as exc:
         return PipelineResult("needs_retake", f"We couldn't read that recording ({exc}). Please try again.")
 
-    heard = verify_read.transcribe(norm.wav16)
+    with timer("transcribe"):
+        heard = verify_read.transcribe(norm.wav16)
     log.info("heard: %s", " ".join(h.word for h in heard))
     target = phonetics.sentence_phones(phonetics.tokenize(target_text))
 
@@ -45,12 +75,14 @@ def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Pat
         return PipelineResult("needs_retake", gate.message, gate.missing)
 
     try:
-        alignment = aligner.align(norm.wav16, masked_text)
+        with timer("align"):
+            alignment = aligner.align(norm.wav16, masked_text)
     except aligner.AlignmentError as exc:
         log.warning("%s", exc)
         return PipelineResult("needs_retake", gate.message or "We couldn't follow that recording. Please read the sentence again.", gate.missing)
 
-    plan = plan_splice(target, alignment.phones, alignment.times)
+    with timer("plan"):
+        plan = plan_splice(target, alignment.phones, alignment.times)
     critical = _critical_words(plan[0], alignment.phones) if plan else set()
 
     gate = verify_read.check(masked_text, heard, alignment, critical)
@@ -59,5 +91,6 @@ def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Pat
     if plan is None:
         return PipelineResult("failed", "Some sounds were missing from the recording.")
 
-    editor.render(plan[0], alignment, norm, out, workdir)
+    with timer("render"):
+        editor.render(plan[0], alignment, norm, out, workdir)
     return PipelineResult("done", output=out)

@@ -3,7 +3,7 @@ ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
-.PHONY: setup models test mask dev api web settings env-example
+.PHONY: setup models test mask dev api web settings env-example bench
 
 setup:  ## create the Python env, download speech models, pull the local LLM
 	$(CONDA) env update -f backend/environment.yml --prune
@@ -24,6 +24,9 @@ settings:  ## show the settings in use (defaults + .env + environment)
 
 env-example:  ## regenerate .env.example after adding or changing a setting
 	$(PY) scripts/cli.py settings --example > .env.example
+
+bench:  ## benchmark saved recordings: make bench ARGS="--good --set CROSSFADE_MS=12"
+	$(PY) scripts/bench.py run $(ARGS)
 
 mask:  ## make mask TEXT="hello sir"
 	$(PY) scripts/cli.py mask "$(TEXT)"

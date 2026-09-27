@@ -39,6 +39,13 @@ listed with a plain-English explanation in [`.env.example`](.env.example). To ch
 copy it to `.env`, uncomment the line, edit it and restart `make dev`. `make settings` shows
 what's in use, with your changes marked.
 
+### Benchmark
+`make bench` runs your saved recordings (local only, see
+[`backend/tests/fixtures/README.md`](backend/tests/fixtures/README.md)) through the pipeline
+and reports time per step, whether the retake check made the right call, and a clarity
+score for each output video, compared against a saved baseline. Try a setting without
+editing `.env`: `make bench ARGS="--good --set CROSSFADE_MS=12"`.
+
 ### Command line
 ```sh
 python scripts/cli.py mask "hello sir this is not what I originally said"
