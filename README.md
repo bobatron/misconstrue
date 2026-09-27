@@ -50,10 +50,13 @@ score for each output video, compared against a saved baseline. Try a setting wi
 editing `.env`: `make bench ARGS="--good --set CROSSFADE_MS=12"`.
 
 ### Command line
+Use the `make` commands: they run the project's own Python environment. (The Mac's built-in
+`python3` doesn't have the project's libraries.)
+
 ```sh
-python scripts/cli.py mask "hello sir this is not what I originally said"
-python scripts/cli.py synth "<masked sentence>" clip.mp4   # fake recording with macOS say
-python scripts/cli.py run clip.mp4 --masked "<masked sentence>" --target "hello sir..." -o out.mp4
+make cli ARGS='mask "hello sir this is not what I originally said"'
+make cli ARGS='synth "<masked sentence>" clip.mp4'   # fake recording with macOS say
+make cli ARGS='run clip.mp4 --masked "<masked sentence>" --target "hello sir..." -o out.mp4'
 ```
 
 ## How it works

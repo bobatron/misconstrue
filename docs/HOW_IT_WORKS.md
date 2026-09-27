@@ -305,7 +305,7 @@ make bench                                          # everything
 make bench ARGS="--good"                            # only takes that should render
 make bench ARGS="--set CROSSFADE_MS=12"             # try a setting without editing .env
 make bench ARGS="--save-baseline"                   # make this run the new reference
-python scripts/bench.py import 30 31                # add new recordings as fixtures
+make fixtures ARGS="tjqn57np"                       # add a link's recordings as fixtures
 ```
 
 The recordings stay on your computer (git-ignored), because they're people's faces and voices.

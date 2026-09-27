@@ -1,10 +1,11 @@
 """Command-line access to the pipeline, for testing without the web app.
 
-  python scripts/cli.py mask "hello sir this is not what I originally said"
-  python scripts/cli.py synth "Some masked sentence." clip.mp4      # fake recording via macOS `say`
-  python scripts/cli.py run clip.mp4 --masked "..." --target "..." -o out.mp4
-  python scripts/cli.py settings            # show the settings in use
-  python scripts/cli.py settings --example  # print a fresh .env.example
+Run through make (it uses the project's Python):
+  make cli ARGS='mask "hello sir this is not what I originally said"'
+  make cli ARGS='synth "Some masked sentence." clip.mp4'   # fake recording via macOS `say`
+  make cli ARGS='run clip.mp4 --masked "..." --target "..." -o out.mp4'
+  make settings                                            # show the settings in use
+  make env-example                                         # regenerate .env.example
 """
 from __future__ import annotations
 
@@ -16,6 +17,10 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+
+from _env import require_project_python  # noqa: E402
+
+require_project_python()
 
 from app import config  # noqa: E402
 from app.core import masker, pipeline  # noqa: E402

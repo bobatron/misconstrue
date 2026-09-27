@@ -21,6 +21,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
 | QUAL-4 | Ask the reader to speak slowly and clearly (folded into REC-1) | Quality | S | P1 | — |
+| QUAL-5 | Extra sound at the end of the output ("…amber" + "remember") | Quality | S | Perfect | TOOL-1 |
 | REC-1 | 🟡 Prompter: show a few words at a time over the video, advance when they've been said: built, needs your recordings | Recording | M | **P0** | — |
 | REC-2 | Live word check: confirm each prompt was said correctly, repeat it straight away if not | Recording | L | P2 | REC-1 |
 | REC-3 | Re-record only the missed words, not the whole take | Recording | M | P2 | REC-1 |
@@ -44,7 +45,19 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → ~~QUAL-1~~ → REC-1 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
+then publish):
+
+1. **Main tasks:** PERF-5 → POL-5 → POL-2 → POL-3 → POL-4 → HOST-2 → HOST-1 → HOST-3 → HOST-4 →
+   HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
+2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
+   QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
+3. **Publish:** HOST-9
+4. **Optional / later:** REC-2, REC-3, PERF-2 (mostly covered by CONFIG-2's analysis cache),
+   PERF-3, PERF-4a/b
+
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ · built, awaiting more
+real recordings: REC-1
 
 ---
 
@@ -203,6 +216,13 @@ find word boundaries.
 When the recording contains the same sound more than once, the planner currently only
 avoids *squashed* ones. Also favour copies from stressed syllables, which are naturally
 longer and clearer, and add a mild penalty for any piece shorter than about 60 ms.
+
+### QUAL-5 · Extra sound at the end of the output  `S · Perfect-the-output phase`
+Reported on the first prompter take (fixture **r33**, "hello charlotte and amber"): the video
+said the sentence correctly, then added something that sounded like "remember". "remember"
+contains "amber"'s sounds, so a cut probably runs past the end of the needed sounds, or the
+lead-out footage carries audio. **Do:** reproduce with `make bench ARGS="--only r33"`, inspect the
+plan's last span and the tail audio, fix, and add a test.
 
 ### QUAL-4 · Ask the reader to speak slowly and clearly  `S · P1` (folded into REC-1)
 The easiest win: slower reading gives longer sounds to cut from. Add "read slowly and

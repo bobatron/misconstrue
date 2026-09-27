@@ -3,7 +3,7 @@ ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
-.PHONY: setup models test mask dev api web settings env-example bench
+.PHONY: setup models test mask dev api web settings env-example bench fixtures cli
 
 setup:  ## create the Python env, download speech models, pull the local LLM
 	$(CONDA) env update -f backend/environment.yml --prune
@@ -27,6 +27,12 @@ env-example:  ## regenerate .env.example after adding or changing a setting
 
 bench:  ## benchmark saved recordings: make bench ARGS="--good --set CROSSFADE_MS=12"
 	$(PY) scripts/bench.py run $(ARGS)
+
+fixtures:  ## import recordings as benchmark fixtures: make fixtures ARGS="tjqn57np" (link id) or ARGS="30 31"
+	$(PY) scripts/bench.py import $(ARGS)
+
+cli:  ## the command-line tool: make cli ARGS='mask "hello there"'
+	$(PY) scripts/cli.py $(ARGS)
 
 mask:  ## make mask TEXT="hello sir"
 	$(PY) scripts/cli.py mask "$(TEXT)"

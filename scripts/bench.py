@@ -1,11 +1,13 @@
 """Benchmark the pipeline on saved recordings: speed per step, retake-check accuracy, clarity.
 
-  python scripts/bench.py import 11 12 14-27        # copy app recordings into fixtures
-  python scripts/bench.py run                        # benchmark every fixture
-  python scripts/bench.py run --good --only r17,r20  # a subset
-  python scripts/bench.py run --set CROSSFADE_MS=12  # try a setting without editing .env
-  python scripts/bench.py run --save-baseline        # make this run the one to compare against
-  python scripts/bench.py run --good --reuse-analysis --set PLAYBACK_SPEED=0.8
+Run through make (it uses the project's Python):
+  make fixtures ARGS="tjqn57np"                      # import every recording for a link
+  make fixtures ARGS="11 12 14-27"                   # ...or by recording number
+  make bench                                         # benchmark every fixture
+  make bench ARGS="--good --only r17,r20"            # a subset
+  make bench ARGS="--set CROSSFADE_MS=12"            # try a setting without editing .env
+  make bench ARGS="--save-baseline"                  # make this run the one to compare against
+  make bench ARGS="--good --reuse-analysis --set PLAYBACK_SPEED=0.8"
                                                      # quality sweeps in seconds (timings not comparable)
 
 Fixtures live in backend/tests/fixtures/ and are git-ignored: they're your face and voice.
@@ -15,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sqlite3
 import statistics
@@ -24,6 +27,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+
+from _env import require_project_python  # noqa: E402
+
+require_project_python()
 
 from app import config  # noqa: E402
 from app.core import pipeline, scoring  # noqa: E402
@@ -37,15 +44,27 @@ BASELINE = BENCH_DIR / "baseline.json"
 # ── import ─────────────────────────────────────────────────────────────────────
 
 
-def _parse_ids(specs: list[str]) -> list[int]:
+def _parse_ids(specs: list[str], db: sqlite3.Connection | None = None) -> list[int]:
+    """Recording numbers ("11", "14-27", "20,22") or link ids ("tjqn57np": all its recordings)."""
     ids: list[int] = []
     for spec in specs:
         for part in spec.split(","):
-            if "-" in part:
+            if not part:
+                continue
+            if re.fullmatch(r"\d+-\d+", part):
                 a, b = part.split("-")
                 ids.extend(range(int(a), int(b) + 1))
-            elif part:
+            elif part.isdigit():
                 ids.append(int(part))
+            elif db is not None:
+                found = [r[0] for r in db.execute(
+                    "select r.id from recording r join challenge c on c.id = r.challenge_id "
+                    "where c.slug = ? order by r.id", (part,))]
+                if not found:
+                    print(f"  {part}: no link with that id (or it has no recordings)")
+                ids.extend(found)
+            else:
+                raise ValueError(f"not a recording number: {part}")
     return ids
 
 
@@ -54,7 +73,7 @@ def cmd_import(args: argparse.Namespace) -> None:
     fixtures = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else []
     known = {f["name"] for f in fixtures}
     FIXTURES.mkdir(parents=True, exist_ok=True)
-    for rid in _parse_ids(args.ids):
+    for rid in _parse_ids(args.ids, db):
         row = db.execute(
             "select r.status, r.input_path, r.challenge_id, c.masked_text, c.target_text, "
             "(select count(*) from recording r2 where r2.challenge_id = r.challenge_id and r2.id <= r.id) "
@@ -218,7 +237,7 @@ def _print_summary(s: dict, baseline: dict | None) -> None:
 
 def cmd_run(args: argparse.Namespace) -> None:
     if not MANIFEST.exists():
-        raise SystemExit("No fixtures yet. Import some with: python scripts/bench.py import <recording ids>")
+        raise SystemExit("No fixtures yet. Import some with: make fixtures ARGS=\"<link id or recording numbers>\"")
     overrides = _apply_overrides(args.set)
     fixtures = _select(json.loads(MANIFEST.read_text()), args)
     if not fixtures:
@@ -275,7 +294,7 @@ def main() -> None:
     sub = p.add_subparsers(required=True)
 
     imp = sub.add_parser("import", help="copy app recordings into the fixtures folder")
-    imp.add_argument("ids", nargs="+", help="recording ids, e.g. 11 12 14-27")
+    imp.add_argument("ids", nargs="+", help="link ids (e.g. tjqn57np) or recording numbers (e.g. 11 12 14-27)")
     imp.set_defaults(func=cmd_import)
 
     run = sub.add_parser("run", help="benchmark the fixtures")
