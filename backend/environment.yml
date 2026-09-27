@@ -1,0 +1,21 @@
+name: misconstrue
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - montreal-forced-aligner
+  - pip
+  - pip:
+      - fastapi
+      - uvicorn[standard]
+      - python-multipart
+      - sqlmodel
+      - httpx
+      - pronouncing
+      - g2p_en
+      - wordfreq
+      - faster-whisper
+      - jiwer
+      - numpy
+      - soundfile
+      - pytest
