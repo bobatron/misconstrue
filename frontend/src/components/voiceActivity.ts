@@ -1,19 +1,22 @@
+import { unlockAudio } from './audio'
+
 /**
  * Microphone loudness, measured in the browser (nothing is sent anywhere).
  * Calibrates to the room's background noise, then reports whether someone is speaking.
  */
 export class VoiceActivity {
-  private ctx: AudioContext
+  private source: MediaStreamAudioSourceNode
   private analyser: AnalyserNode
   private buffer: Float32Array<ArrayBuffer>
   private noise = 0.004
   private calibration: number[] = []
 
   constructor(stream: MediaStream) {
-    this.ctx = new AudioContext()
-    this.analyser = this.ctx.createAnalyser()
+    const ctx = unlockAudio() // already started by the Record tap
+    this.analyser = ctx.createAnalyser()
     this.analyser.fftSize = 1024
-    this.ctx.createMediaStreamSource(stream).connect(this.analyser)
+    this.source = ctx.createMediaStreamSource(stream)
+    this.source.connect(this.analyser)
     this.buffer = new Float32Array(this.analyser.fftSize)
   }
 
@@ -43,6 +46,6 @@ export class VoiceActivity {
   }
 
   close(): void {
-    void this.ctx.close()
+    this.source.disconnect() // the shared context stays open for the next take
   }
 }

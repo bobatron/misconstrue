@@ -55,7 +55,17 @@ def test_saved_tuning_is_loaded_at_startup_and_bad_entries_skipped(tuning):
 def test_tuning_api_is_local_only():
     from app.main import app
 
-    local = TestClient(app, client=("127.0.0.1", 5000))
-    remote = TestClient(app, client=("203.0.113.9", 5000))
+    local = TestClient(app, client=("127.0.0.1", 5000), base_url="http://localhost:5173")
+    remote = TestClient(app, client=("203.0.113.9", 5000), base_url="http://localhost:5173")
     assert local.get("/api/tune/settings").status_code == 200
     assert remote.get("/api/tune/settings").status_code == 403
+
+
+def test_tuning_api_refuses_tunnels_even_though_they_connect_locally():
+    from app.main import app
+
+    tunnel = TestClient(app, client=("127.0.0.1", 5000), base_url="https://random-words.trycloudflare.com")
+    assert tunnel.get("/api/tune/settings").status_code == 403
+    local = TestClient(app, client=("127.0.0.1", 5000), base_url="http://localhost:5173")
+    assert local.get("/api/tune/settings", headers={"X-Forwarded-For": "203.0.113.9"}).status_code == 403
+    assert local.get("/api/tune/settings", headers={"CF-Connecting-IP": "203.0.113.9"}).status_code == 403

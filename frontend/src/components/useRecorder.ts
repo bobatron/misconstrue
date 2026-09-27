@@ -51,7 +51,8 @@ export function useRecorder() {
           setRecording(false)
           resolve(new Blob(chunks, { type: r.mimeType || 'video/webm' }))
         }
-        r.start(250)
+        // No timeslice: some Safari versions write broken MP4s when recording in chunks.
+        r.start()
         recorder.current = r
         setSeconds(0)
         setRecording(true)

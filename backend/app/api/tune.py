@@ -23,10 +23,25 @@ from app.worker import worker
 log = logging.getLogger(__name__)
 
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
+LOCAL_NAMES = {"localhost", "127.0.0.1", "[::1]"}
+PROXY_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded", "x-real-ip", "cf-connecting-ip")
 
 
 def local_only(request: Request) -> None:
-    if not request.client or request.client.host not in LOCAL_HOSTS:
+    """Only this computer, typing a localhost address.
+
+    Checking the connecting address isn't enough: a tunnel (e.g. to test on a phone) connects
+    from this computer too. So the address the browser asked for must be localhost, and
+    requests relayed by a proxy or tunnel are refused.
+    """
+    host = request.headers.get("host", "").lower()
+    name = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
+    if (
+        not request.client
+        or request.client.host not in LOCAL_HOSTS
+        or name not in LOCAL_NAMES
+        or any(h in request.headers for h in PROXY_HEADERS)
+    ):
         raise HTTPException(403, "The tuning page is only available on this computer")
 
 

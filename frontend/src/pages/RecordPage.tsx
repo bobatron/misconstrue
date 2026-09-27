@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { type Challenge, getChallenge, getRecording, uploadRecording } from '../api'
+import { unlockAudio } from '../components/audio'
 import { type PromptTiming, usePrompter } from '../components/usePrompter'
 import { MAX_SECONDS, useRecorder } from '../components/useRecorder'
 
@@ -24,6 +25,13 @@ export default function RecordPage() {
   const rec = useRecorder()
   const preview = useRef<HTMLVideoElement>(null)
   const timings = useRef<PromptTiming[]>([])
+  // Width / height of the camera picture: portrait on most phones, landscape on laptops.
+  const [aspect, setAspect] = useState(4 / 3)
+  const fitToVideo = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget
+    if (v.videoWidth && v.videoHeight) setAspect(v.videoWidth / v.videoHeight)
+  }
+  const stageStyle = { '--aspect': aspect } as React.CSSProperties
   const stopRecording = rec.stop
   const onPromptsDone = useCallback(
     (t: PromptTiming[]) => {
@@ -58,6 +66,7 @@ export default function RecordPage() {
   })
 
   async function startRecording(retake?: Retake) {
+    unlockAudio() // must happen inside the tap, before any await (Safari)
     timings.current = []
     setStage({ name: 'recording', retake })
     const blob = await rec.record()
@@ -135,8 +144,8 @@ export default function RecordPage() {
               {flagged.size > 0 && ' Those words are marked when they come up.'}
             </p>
           )}
-          <div className="stage">
-            <video ref={preview} className="camera mirrored" autoPlay muted playsInline />
+          <div className="stage" style={stageStyle}>
+            <video ref={preview} className="camera mirrored" autoPlay muted playsInline onLoadedMetadata={fitToVideo} onResize={fitToVideo} />
             {recording && <span className="rec-dot">● {MAX_SECONDS - rec.seconds}s</span>}
             {recording && (
               <div className="prompter" aria-live="polite">
@@ -185,7 +194,7 @@ export default function RecordPage() {
     case 'review':
       return (
         <main className="page">
-          <div className="stage"><video className="camera mirrored" src={stage.url} controls playsInline /></div>
+          <div className="stage" style={stageStyle}><video className="camera mirrored" src={stage.url} controls playsInline onLoadedMetadata={fitToVideo} /></div>
           <p className="muted small">Happy with it?</p>
           <div className="button-row">
             <button className="secondary" onClick={() => setStage({ name: 'ready', retake: stage.retake })}>Retake</button>
@@ -210,7 +219,7 @@ export default function RecordPage() {
         <main className="page">
           <h1 className="logo">misconstrued!</h1>
           <p className="tagline">Here's what you <em>actually</em> said:</p>
-          <div className="stage"><video className="camera" src={stage.videoUrl} controls autoPlay playsInline /></div>
+          <div className="stage" style={stageStyle}><video className="camera" src={stage.videoUrl} controls autoPlay playsInline onLoadedMetadata={fitToVideo} /></div>
           <blockquote className="masked">“{stage.target}”</blockquote>
           <div className="button-row">
             <a className="button secondary" href={stage.videoUrl} download="misconstrued.mp4">Download</a>

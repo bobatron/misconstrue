@@ -119,7 +119,15 @@ button.stop { background: var(--text); color: var(--bg); }
   font-size: 1.1rem;
 }
 
-.stage { position: relative; border-radius: 20px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+/* Shaped like the camera picture (--aspect = width / height, set from the video), but never so
+   tall that the buttons below fall off a phone screen. */
+.stage {
+  --aspect: 1.3333;
+  position: relative; border-radius: 20px; overflow: hidden; background: #000;
+  aspect-ratio: var(--aspect);
+  width: min(100%, calc(62vh * var(--aspect)));
+  margin: 0 auto;
+}
 .camera { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mirrored { transform: scaleX(-1); }
 .rec-dot {
