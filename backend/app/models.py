@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from app import config
 
@@ -15,13 +15,19 @@ def new_slug() -> str:
     return "".join(secrets.choice(ALPHABET) for _ in range(8))
 
 
+def new_secret() -> str:
+    """Unguessable code for links that must stay private (results pages, videos)."""
+    return secrets.token_urlsafe(12)
+
+
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
 class Challenge(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    slug: str = Field(default_factory=new_slug, index=True, unique=True)
+    slug: str = Field(default_factory=new_slug, index=True, unique=True)  # User 2's share link
+    results_token: str | None = Field(default_factory=new_secret, index=True)  # User 1's private results link
     target_text: str
     masked_text: str
     mask_source: str  # "llm" | "template"
@@ -30,6 +36,7 @@ class Challenge(SQLModel, table=True):
 
 class Recording(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    public_id: str | None = Field(default_factory=new_secret, index=True)  # used in URLs, never the number
     challenge_id: int = Field(foreign_key="challenge.id", index=True)
     status: str = "uploaded"  # uploaded | processing | done | needs_retake | failed
     message: str = ""
@@ -68,6 +75,19 @@ engine = create_engine(f"sqlite:///{config.DATA_DIR / 'misconstrue.db'}", connec
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     _add_missing_columns()
+    _backfill_secrets()
+
+
+def _backfill_secrets() -> None:
+    """Rows made before a secret column existed get one now."""
+    with Session(engine) as s:
+        for ch in s.exec(select(Challenge).where(Challenge.results_token == None)):  # noqa: E711
+            ch.results_token = new_secret()
+            s.add(ch)
+        for rec in s.exec(select(Recording).where(Recording.public_id == None)):  # noqa: E711
+            rec.public_id = new_secret()
+            s.add(rec)
+        s.commit()
 
 
 def _add_missing_columns() -> None:

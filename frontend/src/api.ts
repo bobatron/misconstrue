@@ -23,8 +23,16 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json()
 }
 
+export type Results = {
+  slug: string
+  target_text: string
+  masked_text: string
+  created_at: string
+  recordings: { id: string; status: RecordingStatus['status']; created_at: string; video_url: string | null }[]
+}
+
 export const createChallenge = (text: string) =>
-  request<{ slug: string; masked_text: string }>('/api/challenges', {
+  request<{ slug: string; masked_text: string; results_token: string }>('/api/challenges', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -37,7 +45,9 @@ export function uploadRecording(slug: string, video: Blob, timings: PromptTiming
   const form = new FormData()
   form.append('video', video, `recording.${ext}`)
   form.append('prompt_timings', JSON.stringify(timings))
-  return request<{ recording_id: number }>(`/api/challenges/${slug}/recordings`, { method: 'POST', body: form })
+  return request<{ recording: string }>(`/api/challenges/${slug}/recordings`, { method: 'POST', body: form })
 }
 
-export const getRecording = (id: number) => request<RecordingStatus>(`/api/recordings/${id}`)
+export const getRecording = (id: string) => request<RecordingStatus>(`/api/recordings/${id}`)
+
+export const getResults = (token: string) => request<Results>(`/api/results/${token}`)

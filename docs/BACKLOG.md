@@ -32,7 +32,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | SYL-3 | "Secrecy level" setting: allow word-part carriers ("origin" + "lee") | Quality | M | P1 | SYL-2 |
 | POL-1 | Tune the completeness check on real recordings | Polish | M | P2 | TOOL-1 |
 | POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
-| FEAT-1 | User 1 can see the finished video (private results link) | Feature | M | **P0** | — |
+| FEAT-1 | ✅ User 1 can see the finished video (private results link) | Feature | M | Done | — |
 | FEAT-2 | Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | P1 | — |
 | POL-3 | Better masked sentences (fewer word-list fallbacks) | Polish | M | P2 | — |
 | POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
@@ -52,14 +52,14 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → FEAT-1 → POL-5 → FEAT-2 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → POL-5 → FEAT-2 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
 4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -372,7 +372,7 @@ gain at Medium/Low.
 
 ## Features
 
-### FEAT-1 · User 1 can see the finished video  `M · P0`
+### FEAT-1 · User 1 can see the finished video  `M · ✅ Done`
 Today only User 2 sees the result; the person who wrote the sentence never does (easy to miss
 while one person tests both sides).
 **Do:**
@@ -385,6 +385,15 @@ while one person tests both sides).
   see the video (fold into HOST-7's notice, which becomes needed earlier because of this).
 **Done when:** User 1 can open their results link and watch the finished video as soon as it's
 ready; User 2's link never reveals the results link or the sentence before their reveal.
+
+**Result:** each link gets a secret results code (`/r/<code>`), separate from the share code;
+the create page shows both links ("1. Send this to a friend", "2. Watch the result") and
+remembers your links in this browser ("Your links"). The results page shows the sentence, what
+the friend reads, progress, and the finished videos with download, checking by itself every
+4 s. **Also fixed:** recordings and videos were fetched by sequential numbers
+(`/api/recordings/17/video`), so anyone could guess other people's videos; they now use random
+codes. Existing links and recordings got codes automatically. User 2 now sees "The person who
+sent you this link will see the video." Tested end to end in the browser; 5 new API tests.
 
 ### FEAT-2 · Mirrored playback  `S · P1`
 The live camera preview is mirrored (natural when looking at yourself). Browser video controls

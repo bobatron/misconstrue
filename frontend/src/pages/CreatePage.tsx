@@ -1,13 +1,16 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { createChallenge } from '../api'
+import CopyField from '../components/CopyField'
+import { type MyLink, forgetLink, loadLinks, rememberLink } from '../myLinks'
 
 export default function CreatePage() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ url: string; masked: string } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [result, setResult] = useState<{ shareUrl: string; resultsPath: string; masked: string } | null>(null)
   const [peek, setPeek] = useState(false)
+  const [links, setLinks] = useState<MyLink[]>(loadLinks)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -15,7 +18,13 @@ export default function CreatePage() {
     setError('')
     try {
       const ch = await createChallenge(text)
-      setResult({ url: `${window.location.origin}/c/${ch.slug}`, masked: ch.masked_text })
+      rememberLink({ slug: ch.slug, token: ch.results_token, text: text.trim(), created: new Date().toISOString() })
+      setLinks(loadLinks())
+      setResult({
+        shareUrl: `${window.location.origin}/c/${ch.slug}`,
+        resultsPath: `/r/${ch.results_token}`,
+        masked: ch.masked_text,
+      })
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -23,15 +32,8 @@ export default function CreatePage() {
     }
   }
 
-  async function copy() {
-    if (!result) return
-    await navigator.clipboard.writeText(result.url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   function share() {
-    if (result) navigator.share?.({ title: 'Read this out for me?', url: result.url })
+    if (result) navigator.share?.({ title: 'Read this out for me?', url: result.shareUrl })
   }
 
   if (result) {
@@ -39,12 +41,9 @@ export default function CreatePage() {
       <main className="page">
         <h1 className="logo">misconstrue</h1>
         <section className="card">
-          <h2>Your link is ready</h2>
-          <p className="muted">Send it to a friend. They'll be asked to read an innocent-looking sentence…</p>
-          <div className="share-row">
-            <input className="share-url" readOnly value={result.url} onFocus={(e) => e.target.select()} />
-            <button onClick={copy}>{copied ? 'Copied!' : 'Copy'}</button>
-          </div>
+          <h2>1. Send this to a friend</h2>
+          <p className="muted">They'll be asked to read an innocent-looking sentence…</p>
+          <CopyField value={result.shareUrl} label="Link for your friend" />
           {'share' in navigator && (
             <button className="secondary wide" onClick={share}>
               Share…
@@ -54,6 +53,15 @@ export default function CreatePage() {
             {peek ? 'Hide' : 'Peek at'} what they'll read
           </button>
           {peek && <blockquote className="masked">{result.masked}</blockquote>}
+        </section>
+        <section className="card">
+          <h2>2. Watch the result</h2>
+          <p className="muted">
+            This one's just for you: it shows the video once your friend has recorded. Don't send it to them.
+          </p>
+          <CopyField value={`${window.location.origin}${result.resultsPath}`} label="Your results link" />
+          <Link className="button secondary" to={result.resultsPath}>Open results</Link>
+          <p className="muted small">We'll also remember it in this browser, below "Your links".</p>
         </section>
         <button className="link" onClick={() => { setResult(null); setText('') }}>
           Make another
@@ -86,6 +94,21 @@ export default function CreatePage() {
         We'll write a different sentence that secretly contains all the sounds of yours. When your friend reads it on
         camera, we cut it up to make them say your sentence.
       </p>
+      {links.length > 0 && (
+        <section className="card">
+          <h2>Your links</h2>
+          <ul className="my-links">
+            {links.map((l) => (
+              <li key={l.token}>
+                <Link to={`/r/${l.token}`}>“{l.text}”</Link>
+                <span className="muted small"> · {new Date(l.created).toLocaleDateString()}</span>
+                <button className="link tiny" onClick={() => { forgetLink(l.token); setLinks(loadLinks()) }}>forget</button>
+              </li>
+            ))}
+          </ul>
+          <p className="muted small">Only saved in this browser.</p>
+        </section>
+      )}
     </main>
   )
 }

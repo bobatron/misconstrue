@@ -15,6 +15,7 @@ and where everything runs.
                                "Watson found peace while exploring
                                 the island. Government provides..."
  gets a share link    ◄──      saved with a random link id
+ + a private results link       (and a separate secret results code)
 
                                                       opens the link ◄──
                                                       reads the masked
@@ -28,6 +29,8 @@ and where everything runs.
                            stitch them in a new order
                            → video of them saying
                              "I love pizza"            ──► the reveal 🎉
+ results page shows    ◄──
+ the same video
 ```
 
 Two programs run while you use it:

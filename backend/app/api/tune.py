@@ -171,7 +171,7 @@ def list_recordings() -> list[dict]:
             "masked_text": ch.masked_text,
             "status": rec.status,
             "created_at": rec.created_at.isoformat(),
-            "original_video_url": f"/api/recordings/{rec.id}/video" if rec.status == "done" else None,
+            "original_video_url": f"/api/recordings/{rec.public_id}/video" if rec.status == "done" else None,
             "analysed": (work_dir(rec) / pipeline.ANALYSIS_FILE).exists(),
             "renders": counts.get(rec.id, 0),
         })

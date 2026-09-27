@@ -85,10 +85,10 @@ export default function RecordPage() {
     URL.revokeObjectURL(url)
     setStage({ name: 'processing' })
     try {
-      const { recording_id } = await uploadRecording(slug, blob, timings.current)
+      const { recording } = await uploadRecording(slug, blob, timings.current)
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500))
-        const s = await getRecording(recording_id)
+        const s = await getRecording(recording)
         if (s.status === 'done') return setStage({ name: 'done', videoUrl: s.video_url, target: s.target_text })
         if (s.status === 'needs_retake')
           return backToRecording({ message: s.message, missing: s.missing_tokens })
@@ -122,6 +122,7 @@ export default function RecordPage() {
           <section className="card">
             <h2>A friend needs your voice</h2>
             <p>Some words will pop up on screen, a few at a time. Just say them out loud. It takes about half a minute.</p>
+            <p className="muted small">The person who sent you this link will see the video.</p>
             {rec.error && <p className="error">{rec.error}</p>}
             <button className="wide" onClick={async () => (await rec.start()) && setStage({ name: 'ready' })}>
               Turn on camera

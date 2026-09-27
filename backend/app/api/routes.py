@@ -58,7 +58,7 @@ def create_challenge(body: CreateChallenge) -> dict:
         s.add(ch)
         s.commit()
         s.refresh(ch)
-    return {"slug": ch.slug, "masked_text": ch.masked_text}
+    return {"slug": ch.slug, "masked_text": ch.masked_text, "results_token": ch.results_token}
 
 
 @router.get("/challenges/{slug}")
@@ -91,7 +91,7 @@ async def upload_recording(slug: str, video: UploadFile, prompt_timings: str = F
         rec = Recording(challenge_id=ch.id, input_path="")
         s.add(rec)
         s.commit()
-        rec_id = rec.id
+        rec_id, public_id = rec.id, rec.public_id
         attempts = s.exec(select(func.count()).select_from(Recording).where(Recording.challenge_id == ch.id)).one()
 
     dest = folder / f"{rec_id}-input{suffix}"
@@ -116,7 +116,7 @@ async def upload_recording(slug: str, video: UploadFile, prompt_timings: str = F
         s.commit()
 
     worker.submit(_process, rec_id, ch.id, attempts >= config.MAX_RETAKES)
-    return {"recording_id": rec_id, "status": "uploaded"}
+    return {"recording": public_id, "status": "uploaded"}
 
 
 def _process(recording_id: int, challenge_id: int, force: bool) -> None:
@@ -146,27 +146,54 @@ def _process(recording_id: int, challenge_id: int, force: bool) -> None:
         s.commit()
 
 
-@router.get("/recordings/{recording_id}")
-def recording_status(recording_id: int) -> dict:
+def _recording(public_id: str) -> tuple[Recording, Challenge]:
     with session() as s:
-        rec = s.get(Recording, recording_id)
+        rec = s.exec(select(Recording).where(Recording.public_id == public_id)).first()
         if not rec:
             raise HTTPException(404, "Recording not found")
-        ch = s.get(Challenge, rec.challenge_id)
+        return rec, s.get(Challenge, rec.challenge_id)
+
+
+def video_url(rec: Recording) -> str | None:
+    return f"/api/recordings/{rec.public_id}/video" if rec.status == "done" else None
+
+
+@router.get("/recordings/{public_id}")
+def recording_status(public_id: str) -> dict:
+    rec, ch = _recording(public_id)
     body: dict = {"status": rec.status, "message": rec.message}
     if rec.status == "needs_retake":
         missing = {int(i) for i in rec.missing.split(",") if i}
         body["missing_tokens"] = [t for t, words in enumerate(display_tokens(ch.masked_text)) if set(words) & missing]
     if rec.status == "done":
-        body["video_url"] = f"/api/recordings/{rec.id}/video"
+        body["video_url"] = video_url(rec)
         body["target_text"] = ch.target_text  # the reveal
     return body
 
 
-@router.get("/recordings/{recording_id}/video")
-def recording_video(recording_id: int) -> FileResponse:
-    with session() as s:
-        rec = s.get(Recording, recording_id)
-    if not rec or rec.status != "done" or not Path(rec.output_path).exists():
+@router.get("/recordings/{public_id}/video")
+def recording_video(public_id: str) -> FileResponse:
+    rec, _ = _recording(public_id)
+    if rec.status != "done" or not Path(rec.output_path).exists():
         raise HTTPException(404, "Video not ready")
     return FileResponse(rec.output_path, media_type="video/mp4", filename="misconstrued.mp4")
+
+
+@router.get("/results/{token}")
+def results(token: str) -> dict:
+    """User 1's private page: the sentence, the share link and every attempt, with finished videos."""
+    with session() as s:
+        ch = s.exec(select(Challenge).where(Challenge.results_token == token)).first() if token else None
+        if not ch:
+            raise HTTPException(404, "That results link doesn't exist")
+        recs = s.exec(select(Recording).where(Recording.challenge_id == ch.id).order_by(Recording.id.desc())).all()
+    return {
+        "slug": ch.slug,
+        "target_text": ch.target_text,
+        "masked_text": ch.masked_text,
+        "created_at": ch.created_at.isoformat(),
+        "recordings": [
+            {"id": r.public_id, "status": r.status, "created_at": r.created_at.isoformat(), "video_url": video_url(r)}
+            for r in recs
+        ],
+    }
