@@ -11,6 +11,9 @@ from app import config
 from app.core import media
 from app.core.aligner import Alignment
 from app.core.splice import Span
+from app.core.stretch import stretch_piece
+
+MAX_EXTRA_STRETCH = 2.0  # MIN_PIECE_MS may stretch a piece at most this much beyond PLAYBACK_SPEED
 
 
 @dataclass
@@ -18,6 +21,7 @@ class Segment:
     src_start: float
     src_end: float
     out_start: float = 0.0
+    stretch: float = 1.0  # output duration / source duration
 
     @property
     def duration(self) -> float:
@@ -46,9 +50,21 @@ def segments_for(spans: list[Span], alignment: Alignment, audio: np.ndarray, sr:
     return segs
 
 
+def _stretch_factors(segs: list[Segment]) -> None:
+    """Slow everything by PLAYBACK_SPEED, and very short pieces a bit more (MIN_PIECE_MS)."""
+    base = 1.0 / config.PLAYBACK_SPEED
+    min_s = config.MIN_PIECE_MS / 1000
+    for seg in segs:
+        factor = base
+        if min_s and 0 < seg.duration * base < min_s:
+            factor = base * min(MAX_EXTRA_STRETCH, min_s / (seg.duration * base))
+        seg.stretch = factor
+
+
 def _stitch(segs: list[Segment], audio: np.ndarray, sr: int) -> np.ndarray:
     xf = int(sr * config.CROSSFADE_MS / 1000)
-    clips = [audio[int(s.src_start * sr) : int(s.src_end * sr)].copy() for s in segs]
+    _stretch_factors(segs)
+    clips = [stretch_piece(audio, sr, s.src_start, s.src_end, s.stretch) for s in segs]
 
     # Even out loudness so fragments from loud and quiet words match.
     rms = np.array([np.sqrt(np.mean(c**2)) if len(c) else 0.0 for c in clips])
@@ -83,7 +99,7 @@ def _frames(segs: list[Segment], frames: np.ndarray, total_s: float) -> np.ndarr
             src_t = segs[0].src_start - (starts[0] - t)  # lead-in: footage just before speech
         else:
             i = int(np.searchsorted(starts, t, side="right")) - 1
-            src_t = segs[i].src_start + (t - starts[i])
+            src_t = segs[i].src_start + (t - starts[i]) / segs[i].stretch  # slowed pieces repeat frames
             if i == len(segs) - 1:
                 src_t = min(src_t, segs[i].src_end + config.LEAD_IN_S)  # tail: footage just after
         idx[f] = int(round(src_t * fps))

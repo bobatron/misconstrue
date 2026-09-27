@@ -5,6 +5,8 @@
   python scripts/bench.py run --good --only r17,r20  # a subset
   python scripts/bench.py run --set CROSSFADE_MS=12  # try a setting without editing .env
   python scripts/bench.py run --save-baseline        # make this run the one to compare against
+  python scripts/bench.py run --good --reuse-analysis --set PLAYBACK_SPEED=0.8
+                                                     # quality sweeps in seconds (timings not comparable)
 
 Fixtures live in backend/tests/fixtures/ and are git-ignored: they're your face and voice.
 Each run is saved to data/bench/<time>/ with the output videos, so you can watch them.
@@ -115,10 +117,18 @@ def _select(fixtures: list[dict], args: argparse.Namespace) -> list[dict]:
     return fixtures
 
 
-def _run_one(fx: dict, out_dir: Path) -> dict:
+ANALYSIS_CACHE = BENCH_DIR / "analysis"
+
+
+def _run_one(fx: dict, out_dir: Path, reuse_analysis: bool) -> dict:
     out = out_dir / f"{fx['name']}.mp4"
-    with tempfile.TemporaryDirectory(prefix="bench_") as work:
-        res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], Path(work), out)
+    if reuse_analysis:
+        work = ANALYSIS_CACHE / fx["name"]
+        work.mkdir(parents=True, exist_ok=True)
+        res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], work, out)
+    else:
+        with tempfile.TemporaryDirectory(prefix="bench_") as tmp:
+            res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], Path(tmp), out)
     got = "good" if res.status == "done" else "bad" if res.status == "needs_retake" else res.status
     row = {
         "name": fx["name"],
@@ -219,11 +229,13 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(f"Running {len(fixtures)} fixtures → {out_dir.relative_to(config.ROOT)}")
     if overrides:
         print("Overrides: " + ", ".join(f"{k}={v}" for k, v in overrides.items()))
+    if args.reuse_analysis:
+        print("Reusing saved analysis: clarity is comparable, timings are not.")
 
     rows = []
     for i, fx in enumerate(fixtures, 1):
         print(f"  [{i}/{len(fixtures)}] {fx['name']}…", end="", flush=True)
-        row = _run_one(fx, out_dir)
+        row = _run_one(fx, out_dir, args.reuse_analysis)
         print(f" {row['got']} in {row['timings']['total']:.1f}s")
         rows.append(row)
 
@@ -239,6 +251,7 @@ def cmd_run(args: argparse.Namespace) -> None:
         "when": time.strftime("%Y-%m-%d %H:%M:%S"),
         "fixtures": [f["name"] for f in fixtures],
         "settings_changed": {k: str(v) for k, v in config.changed().items()},
+        "reused_analysis": args.reuse_analysis,
         "rows": rows,
         "summary": _summary(rows),
     }
@@ -271,6 +284,8 @@ def main() -> None:
     run.add_argument("--bad", action="store_true", help="only fixtures labelled bad")
     run.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="override a setting")
     run.add_argument("--save-baseline", action="store_true", help="save this run as the baseline")
+    run.add_argument("--reuse-analysis", action="store_true",
+                     help="keep each fixture's analysis between runs: fast quality comparisons, timings not comparable")
     run.set_defaults(func=cmd_run)
 
     args = p.parse_args()

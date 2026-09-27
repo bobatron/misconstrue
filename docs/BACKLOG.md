@@ -17,7 +17,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2) | Performance | M | P2 | TOOL-1 |
 | PERF-4b | Ship the in-memory aligner behind a setting | Performance | M | P3 | PERF-4a |
 | PERF-5 | Load Whisper at startup, not on first upload | Performance | S | P1 | — |
-| QUAL-1 | Slow down the final sentence (time-stretch) | Quality | M | **P0** | TOOL-1 |
+| QUAL-1 | 🟡 Slow down the final sentence (time-stretch): built, needs a listening test | Quality | M | **P0** | TOOL-1 |
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
 | QUAL-4 | Ask the reader to speak slowly and clearly | Quality | S | P1 | — |
@@ -168,7 +168,7 @@ index. Small, but free.
 Feedback: sounds in the final video are sometimes very short, making the sentence hard to
 follow. Four complementary fixes, each measurable with TOOL-1.
 
-### QUAL-1 · Slow down the final sentence  `M · P0`
+### QUAL-1 · Slow down the final sentence  `M · 🟡 Built, needs a listening test`
 **Do:**
 - Stretch the stitched audio to play slower **without changing pitch** (e.g. ffmpeg's
   `atempo`, or the Rubber Band library for better quality). Setting: `PLAYBACK_SPEED`,
@@ -177,6 +177,15 @@ follow. Four complementary fixes, each measurable with TOOL-1.
   lips stay in sync (frames are repeated, not blended).
 - Optionally stretch only the very short pieces more than the long ones.
 **Done when:** the fixtures' intelligibility score improves, and it still looks in sync.
+
+**Status:** built. `PLAYBACK_SPEED` (1.0 = as recorded) and `MIN_PIECE_MS` (extra stretch for
+very short pieces), using a pitch-preserving stretcher (`core/stretch.py`, WSOLA) applied per
+piece with surrounding context. Video follows each piece's stretch: audio/video lengths match
+within one frame. Defaults leave behaviour unchanged.
+**Measured (7 good fixtures, Whisper):** no clear effect. Averages moved by only a few points
+either way (speed 0.8: 58% words / 74% sounds vs 58% / 76% at 1.0) while single fixtures swung
+widely, i.e. within noise. Whisper is trained on normal-speed speech, so it's a poor judge
+here. **Next:** listen on /tune (try 0.8, and 0.8 + MIN_PIECE_MS 150), then set the default.
 
 ### QUAL-2 · Short pauses between words  `S · P1`
 Insert a small gap (setting `WORD_GAP_MS`, e.g. 60–120 ms) between the words of the target

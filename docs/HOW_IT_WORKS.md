@@ -178,7 +178,12 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 3. **Make the video follow the audio.** For every frame of the output, the app shows the
    frame of the original recording from the moment the current sound was spoken. That
    keeps the lips in sync with the audio. The jumpy look is part of the fun.
-4. **Finish.** [ffmpeg](https://ffmpeg.org) (a video toolkit) encodes the final MP4 and adds
+4. **Slow it down (optional).** `PLAYBACK_SPEED` below 1.0 stretches each piece so the sentence
+   plays slower *without changing the pitch* (the voice doesn't get deeper). It works by laying
+   short overlapping snippets of the sound further apart, each nudged a few milliseconds so the
+   waveform lines up. `MIN_PIECE_MS` stretches very short pieces extra. The video slows down
+   with each piece, repeating frames, so the lips stay in sync.
+5. **Finish.** [ffmpeg](https://ffmpeg.org) (a video toolkit) encodes the final MP4 and adds
    the "misconstrued" watermark.
 
 ---
@@ -305,6 +310,7 @@ backend/app/
     verify_read.py   the "did they read it all?" check (Whisper)
     aligner.py       runs MFA to get sound timings
     editor.py        cuts, crossfades, and assembles the new video
+    stretch.py       slows audio down without changing pitch
     media.py         ffmpeg helpers
     pipeline.py      runs steps 2–4 in order, timing each step; caches the slow ones
     scoring.py       clarity score for a finished video
