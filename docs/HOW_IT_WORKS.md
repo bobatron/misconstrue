@@ -120,9 +120,10 @@ ollama list                 # models you've downloaded
 
 ## Recording: the prompter
 
-User 2 doesn't see the masked sentence as a paragraph. When they press Record there's a short
-3-2-1 countdown (the app listens to the room's background noise meanwhile), then the words
-appear **over the video a few at a time** (3 by default, `WORDS_PER_PROMPT`). When the reader
+User 2 doesn't see the disguise as a paragraph. When they press Record there's a short 3-2-1
+countdown: the app listens to the room's background noise on the live microphone, but isn't
+recording yet. Recording starts when the countdown ends, and a moment later the words appear
+**over the video one at a time** (`WORDS_PER_PROMPT`, framed as a "voice calibration"). When the reader
 has said them and pauses (`ADVANCE_SILENCE_MS`, 0.6 s), the next group appears; after the last
 one recording stops by itself.
 

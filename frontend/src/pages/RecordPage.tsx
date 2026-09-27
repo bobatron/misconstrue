@@ -38,6 +38,12 @@ export default function RecordPage() {
   }
   const stageStyle = { '--aspect': aspect } as React.CSSProperties
   const stopRecording = rec.stop
+  const record = rec.record
+  // The countdown only measures background noise; recording starts when it ends.
+  const onCountdownDone = useCallback(async () => {
+    const blob = await record()
+    setStage((s) => (s.name === 'recording' ? { name: 'review', blob, url: URL.createObjectURL(blob), retake: s.retake } : s))
+  }, [record])
   const onPromptsDone = useCallback(
     (t: PromptTiming[]) => {
       timings.current = t
@@ -52,6 +58,7 @@ export default function RecordPage() {
     silenceMs: challenge?.prompter.advance_silence_ms ?? 600,
     minSpeechPerWordMs: challenge?.prompter.min_speech_per_word_ms ?? 200,
     hintAfterS: challenge?.prompter.hint_after_s ?? 6,
+    onCountdownDone,
     onFinish: onPromptsDone,
   })
 
@@ -79,12 +86,10 @@ export default function RecordPage() {
     }
   })
 
-  async function startRecording(retake?: Retake) {
-    unlockAudio() // must happen inside the tap, before any await (Safari)
+  function startRecording(retake?: Retake) {
+    unlockAudio() // must happen inside the tap (Safari)
     timings.current = []
-    setStage({ name: 'recording', retake })
-    const blob = await rec.record()
-    setStage({ name: 'review', blob, url: URL.createObjectURL(blob), retake })
+    setStage({ name: 'recording', retake }) // countdown first; recording starts when it ends
   }
 
   /** Camera back on (no permission prompt the second time), then back to the record screen. */
@@ -206,7 +211,11 @@ export default function RecordPage() {
                 <button className="secondary" onClick={prompter.back} disabled={prompter.phase !== 'prompting' || prompter.index === 0}>← Back</button>
                 <button className={prompter.hint ? 'pulse' : 'secondary'} onClick={prompter.next} disabled={prompter.phase !== 'prompting'}>Next →</button>
               </div>
-              <button className="wide stop" onClick={rec.stop}>Stop</button>
+              {prompter.phase === 'countdown' ? (
+                <button className="wide stop" onClick={() => { rec.stop(); setStage({ name: 'ready', retake }) }}>Cancel</button>
+              ) : (
+                <button className="wide stop" onClick={rec.stop}>Stop</button>
+              )}
             </>
           ) : (
             <>

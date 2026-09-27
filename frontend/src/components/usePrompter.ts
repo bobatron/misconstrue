@@ -17,10 +17,12 @@ type Options = {
   silenceMs: number // pause after speech that moves on
   minSpeechPerWordMs: number // ...but only after this much speech per word on screen
   hintAfterS: number // no speech this long -> highlight Next
+  onCountdownDone: () => void // start the actual recording now
   onFinish: (timings: PromptTiming[]) => void
 }
 
-const COUNTDOWN_MS = 1500 // also used to measure background noise
+const COUNTDOWN_MS = 1500 // measures background noise on the live mic; not part of the recording
+const RECORD_LEAD_MS = 300 // recording starts this long before the first word appears
 const GRACE_MS = 300 // ignore sound right after a prompt appears (tail of the previous one)
 const MIN_SPEECH_MS = 120 // shorter blips (a cough, a click) aren't speech
 const TICK_MS = 30
@@ -30,7 +32,9 @@ const LONG_PAUSE_MS = 2000 // after some speech, a pause this long moves on rega
  * Shows the masked sentence a few words at a time and moves on when the reader has said them:
  * speech starts, then there's a pause of `silenceMs`. Space / → = next, ← = back.
  */
-export function usePrompter({ prompts, stream, active, silenceMs, minSpeechPerWordMs, hintAfterS, onFinish }: Options) {
+export function usePrompter({
+  prompts, stream, active, silenceMs, minSpeechPerWordMs, hintAfterS, onCountdownDone, onFinish,
+}: Options) {
   const [phase, setPhase] = useState<'idle' | 'countdown' | 'prompting' | 'done'>('idle')
   const [countdown, setCountdown] = useState(3)
   const [index, setIndex] = useState(0)
@@ -45,9 +49,11 @@ export function usePrompter({ prompts, stream, active, silenceMs, minSpeechPerWo
     timings: [] as PromptTiming[],
   })
   const finish = useRef(onFinish)
+  const countdownDone = useRef(onCountdownDone)
   useEffect(() => {
     finish.current = onFinish
-  }, [onFinish])
+    countdownDone.current = onCountdownDone
+  }, [onFinish, onCountdownDone])
 
   const show = useCallback((i: number) => {
     const st = s.current
@@ -104,6 +110,7 @@ export function usePrompter({ prompts, stream, active, silenceMs, minSpeechPerWo
     st.timings = []
     st.speechStart = 0
     let started = false
+    let firstWordAt = 0 // when recording has had its head start
 
     const id = setInterval(() => {
       const now = performance.now()
@@ -117,9 +124,17 @@ export function usePrompter({ prompts, stream, active, silenceMs, minSpeechPerWo
         if (left <= 0) {
           vad.finishCalibration()
           started = true
-          setPhase('prompting')
-          show(0)
+          st.t0 = now // prompt timings are measured from the start of the recording
+          firstWordAt = now + RECORD_LEAD_MS
+          countdownDone.current()
         }
+        return
+      }
+      if (firstWordAt) {
+        if (now < firstWordAt) return
+        firstWordAt = 0
+        setPhase('prompting')
+        show(0)
         return
       }
       if (st.index >= prompts.length) return
