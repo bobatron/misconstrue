@@ -3,7 +3,7 @@ ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
-.PHONY: setup models test mask dev api web settings env-example bench fixtures cli tunnel
+.PHONY: setup models test mask dev api web settings env-example bench fixtures cli tunnel mask-eval
 
 setup:  ## create the Python env, download speech models, pull the local LLM
 	$(CONDA) env update -f backend/environment.yml --prune
@@ -36,6 +36,9 @@ cli:  ## the command-line tool: make cli ARGS='mask "hello there"'
 
 tunnel:  ## temporary public https address for testing on a phone (needs `make dev` running; Ctrl-C to stop)
 	cloudflared tunnel --no-autoupdate --url http://localhost:5173
+
+mask-eval:  ## how natural are masked sentences? make mask-eval ARGS="--set LLM_GROUPS_PER_PHRASE=2"
+	$(PY) scripts/mask_eval.py $(ARGS)
 
 mask:  ## make mask TEXT="hello sir"
 	$(PY) scripts/cli.py mask "$(TEXT)"

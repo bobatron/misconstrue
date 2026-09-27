@@ -87,7 +87,7 @@ export default function CreatePage() {
         />
         {error && <p className="error">{error}</p>}
         <button className="wide" disabled={busy || !text.trim()}>
-          {busy ? 'Writing a disguise… (about 15 s)' : 'Create link'}
+          {busy ? 'Writing a disguise… (10–20 s)' : 'Create link'}
         </button>
       </form>
       <p className="muted small">

@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from app.core import masker, phonetics
 
 
@@ -26,3 +28,22 @@ def test_llm_sentence_falls_back_when_llm_is_unavailable(monkeypatch):
     monkeypatch.setattr(config.settings, "LLM_PROVIDER", "none")
     r = masker.mask("I love pizza", use_llm=True, seed=1)
     assert r.source == "template"
+
+
+def test_common_function_words_are_not_secret():
+    f = masker.Forbidden(["i", "love", "the", "pizza", "not"])
+    assert not f("the") and not f("i")  # everywhere anyway
+    assert f("love") and f("not")  # content words and negations stay hidden
+
+
+@pytest.mark.parametrize("target, leak", [
+    ("cheese", "cheesy"), ("pounds", "pounding"), ("twenty", "twentieth"), ("dog", "dogs"),
+    ("love", "loving"), ("secretly", "secrecy"),
+])
+def test_word_family_members_give_the_game_away(target, leak):
+    assert masker.Forbidden([target])(leak)
+
+
+@pytest.mark.parametrize("target, fine", [("homework", "homemade"), ("dog", "dough"), ("cat", "catalogue")])
+def test_unrelated_words_are_allowed(target, fine):
+    assert not masker.Forbidden([target])(fine)
