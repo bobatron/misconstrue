@@ -226,6 +226,26 @@ Everything runs on your Mac. Nothing is sent to the internet while you use the a
 
 ## Changing settings
 
+### The tuning page (easiest)
+
+Open **http://localhost:5173/tune** while `make dev` is running:
+
+- **Left:** every setting, grouped, with a slider or box, its default and what it does.
+  Change some, press **Apply**: they take effect for the next video, no restart. They're
+  saved in `data/settings.json`; **Reset all** deletes that file. Settings that need a
+  restart (models, paths) are shown but locked: change those in `.env`.
+- **Right:** pick any saved recording and press **Re-render with current settings**. The
+  slow steps (converting, transcribing, aligning) are saved the first time, so re-renders
+  take a couple of seconds. Each result shows its clarity scores and the settings it used,
+  next to the original, so you can compare.
+
+A re-render also runs the retake check, so you can see whether a take would pass with
+stricter or looser check settings. Masking settings only affect new links.
+
+The page only answers requests from your own computer.
+
+### The .env file
+
 All the tunable numbers live in one place, `backend/app/config.py`, and are listed with a
 plain-English explanation and allowed range in `.env.example` at the project root.
 
@@ -273,7 +293,9 @@ hear a video differently. Treat the score as a guide, and watch the videos too.
 backend/app/
   main.py            starts the web server
   api/routes.py      the API: create link, upload, check status, serve video
-  models.py          database tables (Challenge = a link, Recording = an upload)
+  api/tune.py        the tuning page's API: settings, re-renders
+  models.py          database tables (Challenge = a link, Recording = an upload,
+                     Render = a re-render from the tuning page)
   config.py          all the tunable settings (defaults, .env loading, validation)
   core/
     phonetics.py     words → sounds; the carrier-word index
@@ -284,11 +306,12 @@ backend/app/
     aligner.py       runs MFA to get sound timings
     editor.py        cuts, crossfades, and assembles the new video
     media.py         ffmpeg helpers
-    pipeline.py      runs steps 2–4 in order, timing each step
+    pipeline.py      runs steps 2–4 in order, timing each step; caches the slow ones
     scoring.py       clarity score for a finished video
 frontend/src/
   pages/CreatePage.tsx   User 1: type a sentence, get a link
   pages/RecordPage.tsx   User 2: camera, teleprompter, retakes, reveal
+  pages/TunePage.tsx     /tune: settings + re-render and compare
 scripts/cli.py         run everything from the terminal (handy for testing)
 scripts/bench.py       benchmark: speed, retake-check accuracy, clarity score
 ```

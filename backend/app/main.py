@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
+from app.api import tune
 from app.api.routes import router
 from app.core import phonetics
 from app.models import init_db
@@ -27,6 +28,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="misconstrue", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
+app.include_router(tune.router)
 
 
 @app.get("/api/health")

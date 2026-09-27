@@ -1,12 +1,15 @@
 """Recording in, misconstrued video out (or a request to try again)."""
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app import config
 from app.core import aligner, editor, media, phonetics, verify_read
 from app.core.splice import plan_splice
 
@@ -51,17 +54,69 @@ def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Pat
     return result
 
 
+# ── Analysis cache ─────────────────────────────────────────────────────────────
+# Converting, transcribing and aligning a recording are the slow steps, and their results only
+# depend on the recording and a few settings. They're saved in the work folder so a re-render
+# (tuning page) only redoes the check, plan and render.
+
+ANALYSIS_FILE = "analysis.json"
+ANALYSIS_SETTINGS = (
+    "FPS", "OUTPUT_HEIGHT", "AUDIO_SR", "WHISPER_MODEL", "MFA_ACOUSTIC_MODEL", "MFA_DICTIONARY", "PRONUNCIATION_DICT",
+)
+
+
+def _analysis_key(video: Path, masked_text: str) -> str:
+    stat = video.stat()
+    parts = [str(video.resolve()), str(stat.st_size), str(stat.st_mtime_ns), masked_text]
+    parts += [str(getattr(config, name)) for name in ANALYSIS_SETTINGS]
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
+
+
+def _normalised(workdir: Path) -> media.Normalised:
+    return media.Normalised(workdir / "video.mp4", workdir / "audio16.wav", workdir / "audio48.wav")
+
+
+def _load_analysis(workdir: Path, key: str) -> dict | None:
+    path = workdir / ANALYSIS_FILE
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text())
+    norm = _normalised(workdir)
+    if data.get("key") != key or not all(p.exists() for p in (norm.video, norm.wav16, norm.wav48)):
+        return None
+    return data
+
+
+def _save_analysis(workdir: Path, key: str, heard: list, alignment: aligner.Alignment | None) -> None:
+    data = {
+        "key": key,
+        "heard": [vars(h) for h in heard],
+        "alignment": alignment.to_json() if alignment else None,
+    }
+    (workdir / ANALYSIS_FILE).write_text(json.dumps(data))
+
+
 def _run(
     video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool, timer: _Timer
 ) -> PipelineResult:
-    try:
-        with timer("normalise"):
-            norm = media.normalise(video, workdir)
-    except media.MediaError as exc:
-        return PipelineResult("needs_retake", f"We couldn't read that recording ({exc}). Please try again.")
-
-    with timer("transcribe"):
-        heard = verify_read.transcribe(norm.wav16)
+    key = _analysis_key(video, masked_text)
+    cached = _load_analysis(workdir, key)
+    alignment: aligner.Alignment | None = None
+    if cached:
+        norm = _normalised(workdir)
+        heard = [verify_read.Heard(**h) for h in cached["heard"]]
+        if cached["alignment"]:
+            alignment = aligner.Alignment.from_json(cached["alignment"])
+        log.info("re-using saved analysis")
+    else:
+        try:
+            with timer("normalise"):
+                norm = media.normalise(video, workdir)
+        except media.MediaError as exc:
+            return PipelineResult("needs_retake", f"We couldn't read that recording ({exc}). Please try again.")
+        with timer("transcribe"):
+            heard = verify_read.transcribe(norm.wav16)
+        _save_analysis(workdir, key, heard, None)
     log.info("heard: %s", " ".join(h.word for h in heard))
     target = phonetics.sentence_phones(phonetics.tokenize(target_text))
 
@@ -74,12 +129,18 @@ def _run(
     if not gate.ok and (not force or not heard):
         return PipelineResult("needs_retake", gate.message, gate.missing)
 
-    try:
-        with timer("align"):
-            alignment = aligner.align(norm.wav16, masked_text)
-    except aligner.AlignmentError as exc:
-        log.warning("%s", exc)
-        return PipelineResult("needs_retake", gate.message or "We couldn't follow that recording. Please read the sentence again.", gate.missing)
+    if alignment is None:
+        try:
+            with timer("align"):
+                alignment = aligner.align(norm.wav16, masked_text)
+        except aligner.AlignmentError as exc:
+            log.warning("%s", exc)
+            return PipelineResult(
+                "needs_retake",
+                gate.message or "We couldn't follow that recording. Please read the sentence again.",
+                gate.missing,
+            )
+        _save_analysis(workdir, key, heard, alignment)
 
     with timer("plan"):
         plan = plan_splice(target, alignment.phones, alignment.times)

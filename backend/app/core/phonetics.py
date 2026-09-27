@@ -170,3 +170,7 @@ def carrier_index() -> dict[tuple[str, ...], list[Carrier]]:
 def _contains(seq: tuple[str, ...], gram: tuple[str, ...]) -> bool:
     n = len(gram)
     return any(seq[i : i + n] == gram for i in range(len(seq) - n + 1))
+
+
+# The carrier index depends on these settings: rebuild it when the tuning page changes them.
+config.on_change(lambda names: carrier_index.cache_clear() if names & {"MIN_CARRIER_ZIPF", "MIN_VARIANT_PROB"} else None)

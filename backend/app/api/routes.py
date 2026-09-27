@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import shutil
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile
@@ -12,13 +10,11 @@ from sqlmodel import func, select
 
 from app import config
 from app.core import masker, phonetics, pipeline
-from app.models import Challenge, Recording, session
+from app.models import Challenge, Recording, session, work_dir
+from app.worker import worker
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
-
-# Speech models are heavy: process one recording at a time.
-_worker = ThreadPoolExecutor(max_workers=1)
 
 UPLOAD_SUFFIXES = {".webm", ".mp4", ".mov", ".m4v", ".mkv"}
 
@@ -107,7 +103,7 @@ async def upload_recording(slug: str, video: UploadFile) -> dict:
         s.add(rec)
         s.commit()
 
-    _worker.submit(_process, rec_id, ch.id, attempts >= config.MAX_RETAKES)
+    worker.submit(_process, rec_id, ch.id, attempts >= config.MAX_RETAKES)
     return {"recording_id": rec_id, "status": "uploaded"}
 
 
@@ -119,16 +115,14 @@ def _process(recording_id: int, challenge_id: int, force: bool) -> None:
         s.add(rec)
         s.commit()
         inp, masked, target = Path(rec.input_path), ch.masked_text, ch.target_text
+        workdir = work_dir(rec)  # kept: the tuning page re-renders from it
 
-    workdir = inp.parent / f"{recording_id}-work"
     out = inp.parent / f"{recording_id}-output.mp4"
     try:
         res = pipeline.run(inp, masked, target, workdir, out, force=force)
     except Exception:
         log.exception("processing recording %s failed", recording_id)
         res = pipeline.PipelineResult("failed", "Something went wrong on our side. Please try recording again.")
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
 
     with session() as s:
         rec = s.get(Recording, recording_id)

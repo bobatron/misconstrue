@@ -2,23 +2,32 @@
 
 Every setting has a built-in default. Override it in a `.env` file at the project root
 (see `.env.example`), or with an environment variable of the same name, which wins over `.env`.
+Changes made on the tuning page (/tune) are saved to DATA_DIR/settings.json and win over both.
 
 Code reads settings as `config.NAME`. They're served from the live `settings` object, so a
-change made at runtime (e.g. by a future tuning page) applies to the next video.
+change made at runtime applies to the next video.
 """
 from __future__ import annotations
 
 import difflib
+import json
+import logging
 import os
 import textwrap
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+log = logging.getLogger(__name__)
+
 ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = Path(os.getenv("MISCONSTRUE_ENV_FILE", ROOT / ".env"))
+
+# Groups whose settings only take effect after a restart (models are loaded once, paths are
+# fixed): shown on the tuning page but not editable there.
+RESTART_GROUPS = {"system"}
 
 GROUPS = {
     "masking": "Masking: how the disguise sentence is made",
@@ -154,6 +163,121 @@ def load() -> Settings:
         raise SettingsError(f"Invalid setting(s) (from {ENV_FILE} or the environment):\n" + "\n".join(lines)) from None
 
 
+def group_of(name: str) -> str:
+    return (Settings.model_fields[name].json_schema_extra or {}).get("group", "")
+
+
+def tunable(name: str) -> bool:
+    return group_of(name) not in RESTART_GROUPS
+
+
+# ── Tuning page layer ──────────────────────────────────────────────────────────
+
+
+class TuningError(ValueError):
+    def __init__(self, errors: dict[str, str]):
+        super().__init__("; ".join(f"{k}: {v}" for k, v in errors.items()))
+        self.errors = errors
+
+
+_listeners: list[Callable[[set[str]], None]] = []
+
+
+def on_change(callback: Callable[[set[str]], None]) -> None:
+    """Call `callback(changed_names)` whenever settings change at runtime."""
+    _listeners.append(callback)
+
+
+def _notify(names: set[str]) -> None:
+    if names:
+        for callback in _listeners:
+            callback(names)
+
+
+def _tuned_file(data_dir: Path) -> Path:
+    return data_dir / "settings.json"
+
+
+def _start(base: Settings) -> tuple[Settings, dict[str, Any]]:
+    """Base settings plus the tuning page's saved changes (bad entries are skipped, not fatal)."""
+    live = base.model_copy()
+    tuned: dict[str, Any] = {}
+    path = _tuned_file(base.DATA_DIR)
+    raw = json.loads(path.read_text()) if path.exists() else {}
+    for name, value in raw.items():
+        if name not in Settings.model_fields or not tunable(name):
+            log.warning("Ignoring %s in %s: not a tunable setting", name, path)
+            continue
+        try:
+            setattr(live, name, value)
+            tuned[name] = value
+        except ValidationError as exc:
+            log.warning("Ignoring %s=%r in %s: %s", name, value, path, exc.errors()[0]["msg"])
+    return live, tuned
+
+
+def _save_tuned() -> None:
+    path = _tuned_file(_base.DATA_DIR)
+    if _tuned:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(_tuned, indent=2, sort_keys=True) + "\n")
+    else:
+        path.unlink(missing_ok=True)
+
+
+def apply_tuning(changes: dict[str, Any]) -> set[str]:
+    """Validate and apply settings changes from the tuning page, all or nothing; save them."""
+    errors: dict[str, str] = {}
+    candidate = settings.model_copy()
+    for name, value in changes.items():
+        if name not in Settings.model_fields:
+            errors[name] = "unknown setting"
+        elif not tunable(name):
+            errors[name] = "needs a restart: change it in .env instead"
+        else:
+            try:
+                setattr(candidate, name, value)
+            except ValidationError as exc:
+                errors[name] = exc.errors()[0]["msg"]
+    if errors:
+        raise TuningError(errors)
+
+    changed_names = {n for n in changes if getattr(candidate, n) != getattr(settings, n)}
+    for name in changes:
+        value = getattr(candidate, name)
+        setattr(settings, name, value)
+        if value == getattr(_base, name):
+            _tuned.pop(name, None)  # back to the .env/default value: nothing to remember
+        else:
+            _tuned[name] = candidate.model_dump(mode="json")[name]
+    _save_tuned()
+    _notify(changed_names)
+    return changed_names
+
+
+def reset_tuning() -> set[str]:
+    """Forget every tuning-page change: back to defaults + .env + environment."""
+    changed_names = {n for n in _tuned if getattr(settings, n) != getattr(_base, n)}
+    for name in list(_tuned):
+        setattr(settings, name, getattr(_base, name))
+    _tuned.clear()
+    _save_tuned()
+    _notify(changed_names)
+    return changed_names
+
+
+def source(name: str) -> str:
+    """Where a setting's current value comes from: tuning page, env var, .env or default."""
+    if name in _tuned:
+        return "tuning page"
+    file_values, env_values = _read_sources()
+    if name in env_values:
+        return "env var"
+    if name in file_values:
+        return ".env"
+    return "default"
+
+
 def changed() -> dict[str, Any]:
     """Settings that differ from their built-in defaults."""
     defaults = Settings()
@@ -163,8 +287,8 @@ def changed() -> dict[str, Any]:
 def describe() -> str:
     """Human-readable list of the settings in use, grouped, with changes marked."""
     diff = changed()
-    file_values, env_values = _read_sources()
-    out = [f"Settings (defaults, then {ENV_FILE.name if ENV_FILE.exists() else 'no .env file'}, then environment)"]
+    out = [f"Settings (defaults, then {ENV_FILE.name if ENV_FILE.exists() else 'no .env file'}, then environment, "
+           "then tuning page)"]
     for group, title in GROUPS.items():
         out.append(f"\n{title}")
         for name, field in Settings.model_fields.items():
@@ -172,7 +296,7 @@ def describe() -> str:
                 continue
             mark = ""
             if name in diff:
-                mark = "  * env var" if name in env_values else "  * .env" if name in file_values else "  *"
+                mark = f"  * {source(name)}"
             out.append(f"  {name:28} {getattr(settings, name)}{mark}")
     out.append("\n* = changed from the default")
     return "\n".join(out)
@@ -203,7 +327,8 @@ def example_env() -> str:
     return "\n".join(out) + "\n"
 
 
-settings = load()
+_base = load()  # defaults + .env + environment
+settings, _tuned = _start(_base)  # + tuning page
 
 
 def __getattr__(name: str) -> Any:

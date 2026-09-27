@@ -10,7 +10,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | BUG-1 | ✅ Turn camera & mic off after submitting | Bug | S | Done | — |
 | CONFIG-1 | ✅ Editable settings file (`.env`) | Tooling | S | Done | — |
 | TOOL-1 | ✅ Benchmark + intelligibility test harness | Tooling | M | Done | — |
-| CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
+| CONFIG-2 | ✅ Tuning page: live settings + re-render a saved recording | Tooling | M | Done | CONFIG-1 |
 | PERF-1 | ✅ Mini pronunciation dictionary per recording | Performance | S | Done | TOOL-1 (to measure) |
 | PERF-2 | Reuse MFA's cache between runs | Performance | S | P1 | PERF-1 |
 | PERF-3 | Keep MFA loaded as a long-running worker | Performance | M | P2 | PERF-1 |
@@ -41,7 +41,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -88,7 +88,7 @@ good takes. r26 scored 0%, worth a look.
 - Validate values on startup and print the settings in use.
 **Done when:** changing a value in `.env` and restarting changes the app's behaviour.
 
-### CONFIG-2 · Tuning page  `M · P1`
+### CONFIG-2 · Tuning page  `M · ✅ Done`
 **Do:**
 - A `/tune` page (local only) with sliders and switches for each setting, grouped as above.
   Changes are saved (`data/settings.json`) and apply to the next video without a restart.
@@ -99,6 +99,11 @@ good takes. r26 scored 0%, worth a look.
   clarity score when available.
 - "Reset to defaults" button.
 **Done when:** you can try several playback speeds on one recording in under a minute.
+
+**Result:** http://localhost:5173/tune. Four crossfade values tried on one recording in 27 s
+(≈ 7 s each including the clarity score; the render itself ≈ 1 s). Analysis (converted media,
+transcript, alignment) is cached per recording, which also covers most of PERF-2's goal for
+re-renders. Tuning routes answer only local requests until HOST-10.
 
 ---
 

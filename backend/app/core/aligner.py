@@ -25,6 +25,21 @@ class Alignment:
     phones: list[Phone]  # word_index refers to `words`
     times: list[tuple[float, float]]  # parallel to phones
 
+    def to_json(self) -> dict:
+        return {
+            "words": self.words,
+            "phones": [[p.symbol, p.word_index, p.pos, p.word_len] for p in self.phones],
+            "times": self.times,
+        }
+
+    @classmethod
+    def from_json(cls, data: dict) -> Alignment:
+        return cls(
+            [tuple(w) for w in data["words"]],
+            [Phone(*p) for p in data["phones"]],
+            [tuple(t) for t in data["times"]],
+        )
+
 
 class AlignmentError(RuntimeError):
     pass

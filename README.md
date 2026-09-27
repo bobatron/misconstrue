@@ -34,6 +34,9 @@ Open http://localhost:5173, type a sentence, and open the link it gives you (in 
 window, or send it to a friend on the same machine for now).
 
 ### Settings
+The quickest way to tune is the **tuning page** at http://localhost:5173/tune: change settings,
+re-render any saved recording in a couple of seconds, and compare the results side by side.
+
 Every tunable value (how strict the retake check is, crossfade length, which AI model…) is
 listed with a plain-English explanation in [`.env.example`](.env.example). To change one,
 copy it to `.env`, uncomment the line, edit it and restart `make dev`. `make settings` shows
