@@ -5,12 +5,11 @@ import random
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+from app import config
 from app.core import phonetics
 from app.core.phonetics import Carrier, Phone
 from app.core.splice import Span, cut_penalty, plan_splice
 
-MIN_HIDDEN_SUBSTRING = 4  # carriers may not contain target words this long or longer
-SHARED_RUN = 6  # ...nor share this many consecutive letters with one (aboriginal / originally)
 
 
 @dataclass
@@ -40,16 +39,16 @@ class Forbidden:
     def __init__(self, target_words: list[str]):
         self.words = set(target_words)
         self.prons = {phonetics.word_phones(w) for w in target_words}
-        self.long_words = [w for w in self.words if len(w) >= MIN_HIDDEN_SUBSTRING]
+        self.long_words = [w for w in self.words if len(w) >= config.CONTAINED_WORD_MIN_LETTERS]
 
     def __call__(self, word: str) -> bool:
         if word in self.words or phonetics.word_phones(word) in self.prons:
             return True  # same word or a homophone
         for w in self.long_words:
-            if w in word or (len(word) >= MIN_HIDDEN_SUBSTRING and word in w):
+            if w in word or (len(word) >= config.CONTAINED_WORD_MIN_LETTERS and word in w):
                 return True
             m = SequenceMatcher(None, word, w).find_longest_match(0, len(word), 0, len(w))
-            if m.size >= SHARED_RUN:
+            if m.size >= config.SHARED_LETTERS_LIMIT:
                 return True
         return False
 
@@ -116,9 +115,6 @@ def template_sentence(chunks: list[Chunk], rng: random.Random) -> str:
     return (", ".join(words) + ".").capitalize()
 
 
-GROUPS_PER_PHRASE = 3
-
-
 def _phrase_ok(phrase: str, groups: list[Chunk], forbidden: Forbidden) -> bool:
     words = phonetics.tokenize(phrase)
     if not words or any(forbidden(w) or not phonetics.in_dictionary(w) for w in words):
@@ -138,8 +134,9 @@ def llm_sentence(chunks: list[Chunk], forbidden: Forbidden, banned: list[str], r
     rng.shuffle(order)  # don't let phrase order follow the target sentence
     parts = []
     used_llm = False
-    for b in range(0, len(order), GROUPS_PER_PHRASE):
-        batch = order[b : b + GROUPS_PER_PHRASE]
+    step = config.LLM_GROUPS_PER_PHRASE
+    for b in range(0, len(order), step):
+        batch = order[b : b + step]
         valid = [p for p in llm.phrases([g.carriers for g in batch], banned, rng) if _phrase_ok(p, batch, forbidden)]
         if valid:
             used_llm = True

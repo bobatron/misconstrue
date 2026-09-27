@@ -76,9 +76,6 @@ def _key(word: str) -> tuple[str, ...]:
         return (word,)  # g2p data missing: fall back to spelling
 
 
-FUZZY_RATIO = 0.6  # how alike a masked word must sound to what Whisper heard in its place
-
-
 def _match_words(masked: list[str], heard: list[Heard]) -> dict[int, tuple[float, float]]:
     """Masked word index -> (start, end) of where it was heard.
 
@@ -100,7 +97,7 @@ def _match_words(masked: list[str], heard: list[Heard]) -> dict[int, tuple[float
             heard_phones = [p for key in hk[lo:hi] for p in key]
             for i in range(a0, a1):
                 found = _subsequence_hits(mk[i], heard_phones)
-                if found / max(1, len(mk[i])) >= FUZZY_RATIO or (len(mk[i]) >= 3 and len(mk[i]) - found <= 1):
+                if found / max(1, len(mk[i])) >= config.FUZZY_MATCH_RATIO or (len(mk[i]) >= 3 and len(mk[i]) - found <= 1):
                     match[i] = (heard[lo].start, heard[hi - 1].end)
     return match
 

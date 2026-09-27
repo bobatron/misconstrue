@@ -3,7 +3,7 @@ ENV_BIN := $(shell $(CONDA) info --base)/envs/misconstrue/bin
 PY := $(ENV_BIN)/python
 export PATH := $(ENV_BIN):$(PATH)
 
-.PHONY: setup models test mask dev api web
+.PHONY: setup models test mask dev api web settings env-example
 
 setup:  ## create the Python env, download speech models, pull the local LLM
 	$(CONDA) env update -f backend/environment.yml --prune
@@ -18,6 +18,12 @@ models:
 
 test:
 	$(PY) -m pytest backend/tests -q
+
+settings:  ## show the settings in use (defaults + .env + environment)
+	$(PY) scripts/cli.py settings
+
+env-example:  ## regenerate .env.example after adding or changing a setting
+	$(PY) scripts/cli.py settings --example > .env.example
 
 mask:  ## make mask TEXT="hello sir"
 	$(PY) scripts/cli.py mask "$(TEXT)"

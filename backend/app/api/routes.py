@@ -20,7 +20,6 @@ router = APIRouter(prefix="/api")
 # Speech models are heavy: process one recording at a time.
 _worker = ThreadPoolExecutor(max_workers=1)
 
-MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 UPLOAD_SUFFIXES = {".webm", ".mp4", ".mov", ".m4v", ".mkv"}
 
 
@@ -51,8 +50,8 @@ def create_challenge(body: CreateChallenge) -> dict:
     words = phonetics.tokenize(body.text)
     if not words:
         raise HTTPException(422, "Type a sentence with some words in it")
-    if len(words) > 25:
-        raise HTTPException(422, "Keep it to 25 words or fewer")
+    if len(words) > config.MAX_TARGET_WORDS:
+        raise HTTPException(422, f"Keep it to {config.MAX_TARGET_WORDS} words or fewer")
     try:
         result = masker.mask(body.text)
     except ValueError as exc:
@@ -93,13 +92,13 @@ async def upload_recording(slug: str, video: UploadFile) -> dict:
     with dest.open("wb") as f:
         while chunk := await video.read(1 << 20):
             size += len(chunk)
-            if size > MAX_UPLOAD_BYTES:
+            if size > config.MAX_UPLOAD_MB * 1024 * 1024:
                 break
             f.write(chunk)
 
     with session() as s:
         rec = s.get(Recording, rec_id)
-        if size > MAX_UPLOAD_BYTES:
+        if size > config.MAX_UPLOAD_MB * 1024 * 1024:
             dest.unlink(missing_ok=True)
             s.delete(rec)
             s.commit()

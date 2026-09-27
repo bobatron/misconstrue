@@ -11,6 +11,8 @@ dependencies:
       - python-multipart
       - sqlmodel
       - httpx
+      - pydantic>=2
+      - python-dotenv
       - pronouncing
       - g2p_en
       - wordfreq

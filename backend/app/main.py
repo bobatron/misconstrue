@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import config
 from app.api.routes import router
 from app.core import phonetics
 from app.models import init_db
@@ -13,6 +14,11 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    log = logging.getLogger("misconstrue")
+    log.info("%s", config.describe())
+    if not config.PRONUNCIATION_DICT.exists():
+        log.warning("Pronunciation dictionary not found at %s; planning with CMUdict instead, "
+                    "which may not match the aligner. Run `make models`.", config.PRONUNCIATION_DICT)
     init_db()
     phonetics.carrier_index()  # build the word index once, before the first request
     yield

@@ -8,7 +8,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | ID | Item | Area | Size | Priority | Depends on |
 |---|---|---|---|---|---|
 | BUG-1 | ✅ Turn camera & mic off after submitting | Bug | S | Done | — |
-| CONFIG-1 | Editable settings file (`.env`) | Tooling | S | **P0** | — |
+| CONFIG-1 | ✅ Editable settings file (`.env`) | Tooling | S | Done | — |
 | TOOL-1 | Benchmark + intelligibility test harness | Tooling | M | **P0** | — |
 | CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
 | PERF-1 | Mini pronunciation dictionary per recording | Performance | S | **P0** | TOOL-1 (to measure) |
@@ -41,7 +41,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → CONFIG-1 → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -75,7 +75,7 @@ The foundation for tuning speed and quality without guessing.
 - Prints a before/after table so every change below can prove it helped.
 **Done when:** one command prints timing + intelligibility for all fixtures.
 
-### CONFIG-1 · Editable settings file  `S · P0`
+### CONFIG-1 · Editable settings file  `S · ✅ Done`
 **Do:**
 - Load settings from a `.env` file at the project root (git-ignored), with a committed
   `.env.example` listing every setting, grouped (masking / retake check / output video) and

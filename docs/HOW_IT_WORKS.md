@@ -224,6 +224,21 @@ Everything runs on your Mac. Nothing is sent to the internet while you use the a
 | ffmpeg | Homebrew | — |
 | Your recordings, videos, database | the app | `data/` (not committed to git) |
 
+## Changing settings
+
+All the tunable numbers live in one place, `backend/app/config.py`, and are listed with a
+plain-English explanation and allowed range in `.env.example` at the project root.
+
+```sh
+cp .env.example .env     # then uncomment and edit the lines you want to change
+make dev                 # restart to apply
+make settings            # see what's in use; your changes are marked with *
+```
+
+Typos and out-of-range values stop the app at startup with a clear message (e.g.
+"MAX_RETAKE: did you mean MAX_RETAKES?"), so a mistake is never silently ignored. An
+environment variable with the same name overrides `.env`.
+
 ## Map of the code
 
 ```
@@ -231,7 +246,7 @@ backend/app/
   main.py            starts the web server
   api/routes.py      the API: create link, upload, check status, serve video
   models.py          database tables (Challenge = a link, Recording = an upload)
-  config.py          all the tunable settings, e.g. how strict the check is
+  config.py          all the tunable settings (defaults, .env loading, validation)
   core/
     phonetics.py     words → sounds; the carrier-word index
     masker.py        builds the masked sentence

@@ -12,8 +12,6 @@ from app.core import media
 from app.core.aligner import Alignment
 from app.core.splice import Span
 
-LEAD_S = 0.3  # footage (with silence) shown before and after the spliced speech
-
 
 @dataclass
 class Segment:
@@ -59,7 +57,7 @@ def _stitch(segs: list[Segment], audio: np.ndarray, sr: int) -> np.ndarray:
         if r > 0:
             c *= float(np.clip(target / r, 0.6, 1.8))
 
-    lead = np.zeros(int(sr * LEAD_S), dtype=audio.dtype)
+    lead = np.zeros(int(sr * config.LEAD_IN_S), dtype=audio.dtype)
     out = lead.copy()
     fade_in = np.linspace(0, 1, xf, dtype=audio.dtype)
     for seg, c in zip(segs, clips):
@@ -87,7 +85,7 @@ def _frames(segs: list[Segment], frames: np.ndarray, total_s: float) -> np.ndarr
             i = int(np.searchsorted(starts, t, side="right")) - 1
             src_t = segs[i].src_start + (t - starts[i])
             if i == len(segs) - 1:
-                src_t = min(src_t, segs[i].src_end + LEAD_S)  # tail: footage just after
+                src_t = min(src_t, segs[i].src_end + config.LEAD_IN_S)  # tail: footage just after
         idx[f] = int(round(src_t * fps))
     return frames[np.clip(idx, 0, len(frames) - 1)]
 

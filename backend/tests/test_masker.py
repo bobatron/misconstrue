@@ -23,6 +23,6 @@ def test_template_mask_covers_target_without_leaking_words():
 def test_llm_sentence_falls_back_when_llm_is_unavailable(monkeypatch):
     from app import config
 
-    monkeypatch.setattr(config, "LLM_PROVIDER", "none")
+    monkeypatch.setattr(config.settings, "LLM_PROVIDER", "none")
     r = masker.mask("I love pizza", use_llm=True, seed=1)
     assert r.source == "template"

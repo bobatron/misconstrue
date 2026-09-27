@@ -3,6 +3,8 @@
   python scripts/cli.py mask "hello sir this is not what I originally said"
   python scripts/cli.py synth "Some masked sentence." clip.mp4      # fake recording via macOS `say`
   python scripts/cli.py run clip.mp4 --masked "..." --target "..." -o out.mp4
+  python scripts/cli.py settings            # show the settings in use
+  python scripts/cli.py settings --example  # print a fresh .env.example
 """
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
+from app import config  # noqa: E402
 from app.core import masker, pipeline  # noqa: E402
 
 
@@ -49,6 +52,10 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(f"Work files: {workdir}")
 
 
+def cmd_settings(args: argparse.Namespace) -> None:
+    print(config.example_env() if args.example else config.describe(), end="" if args.example else "\n")
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -73,6 +80,10 @@ def main() -> None:
     r.add_argument("--target", required=True)
     r.add_argument("-o", "--output", default="misconstrued.mp4")
     r.set_defaults(func=cmd_run)
+
+    st = sub.add_parser("settings", help="show the settings in use")
+    st.add_argument("--example", action="store_true", help="print a fresh .env.example")
+    st.set_defaults(func=cmd_settings)
 
     args = p.parse_args()
     args.func(args)

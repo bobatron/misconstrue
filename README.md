@@ -33,6 +33,12 @@ make test
 Open http://localhost:5173, type a sentence, and open the link it gives you (in another
 window, or send it to a friend on the same machine for now).
 
+### Settings
+Every tunable value (how strict the retake check is, crossfade length, which AI model…) is
+listed with a plain-English explanation in [`.env.example`](.env.example). To change one,
+copy it to `.env`, uncomment the line, edit it and restart `make dev`. `make settings` shows
+what's in use, with your changes marked.
+
 ### Command line
 ```sh
 python scripts/cli.py mask "hello sir this is not what I originally said"
