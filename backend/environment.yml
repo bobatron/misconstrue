@@ -18,4 +18,5 @@ dependencies:
       - jiwer
       - numpy
       - soundfile
+      - pillow
       - pytest

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.phonetics import STOPS, VOWELS, Phone
+from app.core.phonetics import STOPS, Phone, is_vowel
 
 
 @dataclass(frozen=True)
@@ -33,27 +33,48 @@ def cut_penalty(target: list[Phone], i: int) -> float:
     cur, prev = target[i].symbol, target[i - 1].symbol
     if cur in STOPS:
         return 0.05  # stop closure is near-silent: a clean place to cut
-    if cur in VOWELS and prev in VOWELS:
+    if is_vowel(cur) and is_vowel(prev):
         return 0.6
-    if cur in VOWELS or prev in VOWELS:
+    if is_vowel(cur) or is_vowel(prev):
         return 0.3
     return 0.15
 
 
-def span_cost(target: list[Phone], source: list[Phone], i: int, j: int, k: int) -> float:
+MIN_PHONE_S = 0.045  # aligned phones shorter than this on average are probably misaligned
+
+
+def span_cost(
+    target: list[Phone], source: list[Phone], i: int, j: int, k: int,
+    times: list[tuple[float, float]] | None = None,
+) -> float:
     cost = 1.0 + cut_penalty(target, i)
+    if times is not None:
+        dur = (times[k + j - i - 1][1] - times[k][0]) / (j - i)
+        if dur < MIN_PHONE_S:
+            cost += 0.8 * (MIN_PHONE_S - dur) / MIN_PHONE_S + 0.3
     if j - i == 1:
         cost += 0.5  # single phones sound choppy
-    # Matching word edges keeps coarticulation natural.
+    # Sounds are shaped by their neighbours, so prefer runs whose surroundings match the target:
+    # both at a word edge, or the same phone on the other side of the cut.
+    last = k + j - i - 1
     if target[i].word_start and source[k].word_start:
         cost -= 0.2
-    if target[j - 1].word_end and source[k + j - i - 1].word_end:
+    elif i > 0 and k > 0 and target[i - 1].symbol == source[k - 1].symbol:
+        cost -= 0.15
+    if target[j - 1].word_end and source[last].word_end:
         cost -= 0.2
+    elif j < len(target) and last + 1 < len(source) and target[j].symbol == source[last + 1].symbol:
+        cost -= 0.15
     return max(cost, 0.3)
 
 
-def plan_splice(target: list[Phone], source: list[Phone]) -> tuple[list[Span], float] | None:
-    """Minimum-cost segmentation of target into runs found in source. None if impossible."""
+def plan_splice(
+    target: list[Phone], source: list[Phone], times: list[tuple[float, float]] | None = None
+) -> tuple[list[Span], float] | None:
+    """Minimum-cost segmentation of target into runs found in source. None if impossible.
+
+    Pass the aligned `times` of the source phones to steer away from squashed alignments.
+    """
     n, m = len(target), len(source)
     if n == 0:
         return [], 0.0
@@ -77,8 +98,8 @@ def plan_splice(target: list[Phone], source: list[Phone]) -> tuple[list[Span], f
             ks = positions.get(tuple(t_sym[i:j]))
             if not ks:
                 break  # longer spans starting at i can't match either
-            k = min(ks, key=lambda k: span_cost(target, source, i, j, k))
-            c = best[i] + span_cost(target, source, i, j, k)
+            k = min(ks, key=lambda k: span_cost(target, source, i, j, k, times))
+            c = best[i] + span_cost(target, source, i, j, k, times)
             if c < best[j]:
                 best[j] = c
                 back[j] = Span(i, j, k)
