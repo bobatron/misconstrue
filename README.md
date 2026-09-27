@@ -6,7 +6,7 @@ themselves reading the masked sentence. The app then chops the recording up at t
 phoneme level and plays back a video of User 2 "saying" User 1's original sentence.
 
 ## Status
-Early development — see the phases below.
+Working MVP. Planned work: [docs/BACKLOG.md](docs/BACKLOG.md).
 
 - [x] Phase 0 — repo + environment setup
 - [x] Phase 1 — CLI risk spike: phonetics, masking, alignment, splicing
