@@ -37,7 +37,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | POL-5 | Friendlier error & edge-case screens | Polish | S | P2 | — |
 | POL-6 | Loudness & crossfade tuning | Polish | S | P2 | TOOL-1 |
 | HOST-1 | Dockerfile + docker-compose | Hosting | M | P3 | — |
-| HOST-2 | CI: run tests on every push (GitHub Actions) | Hosting | S | P3 | — |
+| HOST-2 | ✅ CI: run tests on every push (GitHub Actions) | Hosting | S | Done | — |
 | HOST-3 | Proper job queue instead of an in-process thread | Hosting | M | P3 | HOST-1 |
 | HOST-4 | Store videos in object storage (S3-compatible) | Hosting | M | P3 | HOST-1 |
 | HOST-5 | Auto-delete old recordings (retention) | Hosting | S | P3 | — |
@@ -50,14 +50,14 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → POL-5 → POL-2 → POL-3 → POL-4 → HOST-2 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → POL-2 → POL-5 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
 4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -402,8 +402,14 @@ Experiment with crossfade length and loudness matching using TOOL-1 scores.
 Backend image (conda/mamba base with MFA, ffmpeg, models baked in or downloaded at start),
 frontend built to static files, Ollama as its own container.
 
-### HOST-2 · CI with GitHub Actions  `S · P3`
+### HOST-2 · CI with GitHub Actions  `S · ✅ Done`
 Run the unit tests and a frontend build on every push and pull request.
+
+**Result:** `.github/workflows/ci.yml`: backend tests (pip, Python 3.11, ~50 s) and frontend
+type-check + build + lint (~15 s) on every push to main and every pull request; badge in the
+README. Python libraries now live in `backend/requirements.txt` (pinned), shared with the conda
+environment. The aligner and speech models aren't installed in CI; the tests cover the logic
+around them.
 
 ### HOST-3 · Proper job queue  `M · P3`
 Replace the in-process worker thread with a queue (e.g. Redis + RQ) so the web server
