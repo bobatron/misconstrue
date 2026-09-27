@@ -20,7 +20,10 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | QUAL-1 | ✅ Slow down the final sentence (time-stretch) | Quality | M | Done | TOOL-1 |
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
-| QUAL-4 | Ask the reader to speak slowly and clearly | Quality | S | P1 | — |
+| QUAL-4 | Ask the reader to speak slowly and clearly (folded into REC-1) | Quality | S | P1 | — |
+| REC-1 | Prompter: show a few words at a time over the video, advance when they've been said | Recording | M | **P0** | — |
+| REC-2 | Live word check: confirm each prompt was said correctly, repeat it straight away if not | Recording | L | P2 | REC-1 |
+| REC-3 | Re-record only the missed words, not the whole take | Recording | M | P2 | REC-1 |
 | SYL-1 | Syllable-aware cutting | Quality | M | P1 | TOOL-1 |
 | SYL-2 | Looser sound matching (stress / vowel tolerance) | Quality | M | P1 | SYL-1 |
 | SYL-3 | "Secrecy level" setting: allow word-part carriers ("origin" + "lee") | Quality | M | P1 | SYL-2 |
@@ -41,7 +44,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → ~~QUAL-1~~ → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → ~~CONFIG-2~~ → ~~QUAL-1~~ → REC-1 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -201,10 +204,62 @@ When the recording contains the same sound more than once, the planner currently
 avoids *squashed* ones. Also favour copies from stressed syllables, which are naturally
 longer and clearer, and add a mild penalty for any piece shorter than about 60 ms.
 
-### QUAL-4 · Ask the reader to speak slowly and clearly  `S · P1`
+### QUAL-4 · Ask the reader to speak slowly and clearly  `S · P1` (folded into REC-1)
 The easiest win: slower reading gives longer sounds to cut from. Add "read slowly and
 clearly, like you're talking to someone far away" to the record screen. Optionally, if the
 recording is very fast (sounds per second), ask for a slower retake.
+
+---
+
+## Recording experience
+
+Suggestion (27 Sep 2026): instead of reading a paragraph of odd words, User 2 sees a few words
+at a time overlaid on the video, and the app moves on once they've said them.
+
+Why it helps: natural pacing with clean pauses between prompts gives longer, clearer sounds
+to cut from (QUAL-4's goal, by design instead of by instruction); the reader never faces a
+strange paragraph, so the disguise holds better; missed words can be caught as they happen.
+
+Design constraint: short words read on their own change sound ("the" → "thee", "a" → "ay"),
+losing the weak "uh" vowels the cutting relies on. So prompts are **short phrases of 2–3
+words** by default, not single words.
+
+### REC-1 · Prompter: a few words at a time  `M · P0`
+**Do:**
+- Split the masked sentence into prompts of `WORDS_PER_PROMPT` words (setting, default 3;
+  1 = one word at a time), keeping the LLM's phrases together where possible.
+- While recording, show the current prompt large, overlaid on the camera preview, with a
+  small "3 of 8" progress indicator and the next prompt faintly underneath.
+- **Advance on speech:** voice-activity detection in the browser (Web Audio): once speech has
+  started and then stopped for ~0.5 s, move to the next prompt; stop recording after the last.
+  No speech recognition while recording, nothing leaves the device, no extra latency.
+- Manual fallback: tap/space to advance, "back" to repeat the previous prompt; also advance
+  after a timeout if no speech is detected.
+- Send the prompt timings with the upload (when each prompt was shown and when speech was
+  detected), useful later for alignment and REC-3.
+- The existing completeness check still runs after upload; a retake highlights the missed
+  prompts. The reveal and everything after are unchanged.
+- Absorbs QUAL-4: the prompter also shows a short "say each one clearly" hint.
+**Done when:** a reader can go through a whole masked sentence without touching anything;
+new recordings pass the check at least as often as before; the benchmark (with new fixtures
+recorded this way) shows clarity no worse than paragraph reading, ideally better.
+**Risk:** if speech detection is flaky in noisy rooms, lean on the manual fallback and tune
+the silence threshold (setting).
+
+### REC-2 · Live word check  `L · P2`
+Confirm *which* words were said as the reader goes, and repeat a prompt immediately if it's
+wrong or unclear, instead of finding out after upload.
+**Do:** stream each prompt's audio to the backend (WebSocket) and check it with Whisper
+(`tiny.en`/`base.en` for speed) or a keyword spotter limited to the expected words; send back
+"ok" or "again". The browser's built-in speech recognition isn't suitable: in Chrome it sends
+audio to Google, and it handles random words poorly.
+**Done when:** a skipped or mumbled prompt is caught within about a second, before moving on.
+
+### REC-3 · Re-record only the missed words  `M · P2`
+When the check finds missing words, ask the reader to record just those prompts, then combine
+the clips. Needs the pipeline to accept several clips per recording (align each, merge the
+phone lists with clip offsets) and the editor to pull frames from the right clip.
+**Done when:** a retake after one missed word takes a few seconds, not a full re-read.
 
 ---
 
