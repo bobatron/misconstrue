@@ -23,3 +23,13 @@ def test_carrier_index_has_common_words_only():
     carriers = [c.word for c in index[("P", "IY")]]
     assert carriers, "some common word should contain P IY"
     assert not set(carriers) & phonetics.BLOCKED_CARRIERS
+
+
+def test_names_and_places_are_not_carriers_unless_everyday_words():
+    if not phonetics.proper_names():
+        import pytest
+
+        pytest.skip("NLTK name lists not installed")
+    carriers = {c.word for cs in phonetics.carrier_index().values() for c in cs}
+    assert not {"peter", "boston", "amy", "york"} & carriers
+    assert "will" in carriers  # a name, but mostly an everyday word

@@ -22,6 +22,8 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q wamerican
       - name: Install Python libraries
         run: pip install -r backend/requirements.txt
+      - name: Download word lists (names and places, to keep them out of carriers)
+        run: python -m nltk.downloader -q names gazetteers
       # The aligner (MFA, conda-only) and speech models aren't needed: tests cover the logic
       # around them, and planning falls back to CMUdict without MFA's dictionary.
       - name: Run tests

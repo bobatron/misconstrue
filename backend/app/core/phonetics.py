@@ -32,7 +32,9 @@ BLOCKED_CARRIERS = {
     # Sound like fillers ("um", "uh"), which Whisper leaves out of transcripts on purpose, so the
     # retake check would think they were never said.
     "am", "um", "uh", "ah", "er", "erm", "eh", "oh", "hm", "hmm", "mm", "huh", "uhm", "ha",
-    "mrs", "mr", "dr", "st", "vs", "etc", "ok", "url", "www", "com", "html", "pdf", "usa", "uk",
+    "mrs", "mr", "dr", "st", "vs", "etc", "ok", "york",
+    # Slang spellings and fragments that look like typos when read out.
+    "tha", "da", "ya", "yo", "em", "ol", "non", "nah", "wanna", "gonna", "gotta", "ain", "url", "www", "com", "html", "pdf", "usa", "uk",
 }
 
 
@@ -140,6 +142,21 @@ def lowercase_words() -> set[str] | None:
     return {w for w in WORD_LIST.read_text(encoding="utf-8", errors="ignore").split() if w.islower()}
 
 
+NAME_UNLESS_ZIPF = 5.0  # a name that's also this common an everyday word ("will", "may", "mark") is fine
+
+
+@lru_cache(maxsize=1)
+def proper_names() -> set[str]:
+    """First names and places (NLTK's lists): carriers like "peter" or "boston" read oddly.
+    Empty (no filtering) if the lists aren't installed: `make models` downloads them."""
+    try:
+        from nltk.corpus import gazetteers, names
+
+        return {w.lower() for w in names.words()} | {w.lower() for w in gazetteers.words() if " " not in w}
+    except LookupError:
+        return set()
+
+
 @lru_cache(maxsize=1)
 def carrier_index() -> dict[tuple[str, ...], list[Carrier]]:
     """Phone n-gram -> common words containing it, most frequent first.
@@ -149,8 +166,11 @@ def carrier_index() -> dict[tuple[str, ...], list[Carrier]]:
     """
     index: dict[tuple[str, ...], list[Carrier]] = {}
     known = lowercase_words()
+    names = proper_names()
     for word in pronunciations():
         if known is not None and word not in known:
+            continue
+        if word in names and zipf_frequency(word, "en") < NAME_UNLESS_ZIPF:
             continue
         if not word.isalpha() or word in BLOCKED_CARRIERS or (len(word) == 1 and word not in ("a", "i")):
             continue

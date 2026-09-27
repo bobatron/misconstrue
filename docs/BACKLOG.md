@@ -35,7 +35,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | FEAT-1 | ✅ User 1 can see the finished video (private results link) | Feature | M | Done | — |
 | FEAT-2 | ✅ Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | Done | — |
 | POL-3 | ✅ Better masked sentences (fewer word-list fallbacks) | Polish | M | Done | — |
-| POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
+| POL-4 | ✅ Carrier word clean-up (names like "Boston", odd words) | Polish | S | Done | — |
 | POL-5 | ✅ Friendlier error & edge-case screens | Polish | S | Done | — |
 | POL-6 | Loudness & crossfade tuning | Polish | S | P2 | TOOL-1 |
 | HOST-1 | Dockerfile + docker-compose | Hosting | M | P3 | — |
@@ -52,14 +52,14 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → ~~POL-5~~ → ~~FEAT-2~~ → ~~POL-3~~ → POL-4 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → ~~POL-5~~ → ~~FEAT-2~~ → ~~POL-3~~ → ~~POL-4~~ → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
 4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ ~~FEAT-2~~ ~~POL-3~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ ~~FEAT-2~~ ~~POL-3~~ ~~POL-4~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -442,9 +442,15 @@ creating a link takes ~11 s on average (was 8.6 s), up to ~24 s for long sentenc
 (`OLLAMA_NUM_PARALLEL=1`); allowing 2-4 would let the retries run in parallel. That's a change to
 the Ollama service's settings, so it's left for you to decide.
 
-### POL-4 · Carrier word clean-up  `S · P2`
+### POL-4 · Carrier word clean-up  `S · ✅ Done`
 Some names still slip through (e.g. "Boston" is in the old dictionary as a card game). Use
 a modern word list and extend the blocklist.
+
+**Result:** first names and places (NLTK's name and gazetteer lists) are no longer carriers
+unless they're also everyday words ("will", "may", "mark" stay; "peter", "boston", "amy" go):
+~500 fewer carriers (8,537 → 8,038). Slang/fragment spellings ("tha", "non") blocked. Masking
+evaluation still 20/20 natural, 0% word lists. `make models` and CI download the name lists; the
+filter is skipped if they're missing.
 
 ### POL-5 · Friendlier error & edge-case screens  `S · ✅ Done`
 Camera denied, no microphone, upload failed mid-way, processing takes too long, link

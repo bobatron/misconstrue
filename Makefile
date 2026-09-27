@@ -13,7 +13,7 @@ setup:  ## create the Python env, download speech models, pull the local LLM
 models:
 	mfa model download acoustic english_us_arpa
 	mfa model download dictionary english_us_arpa
-	$(PY) -c "import nltk; [nltk.download(p, quiet=True) for p in ('averaged_perceptron_tagger_eng', 'cmudict')]"
+	$(PY) -c "import nltk; [nltk.download(p, quiet=True) for p in ('averaged_perceptron_tagger_eng', 'cmudict', 'names', 'gazetteers')]"
 	ollama pull qwen3:8b
 
 test:
