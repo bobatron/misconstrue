@@ -54,8 +54,12 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 1. **Phase A: Simplify** (in progress). Done: AI masking off by default (instant word-list
    disguises: link creation 10–30 s → 0.06 s, no 5 GB model), one word at a time framed as a
    "voice calibration", no tiny function words as carriers, fixed judge model for clarity
-   scores; PERF-6 tested (keep `small.en`). **Next:** you record 3–4 one-word takes (good and
-   bad), `make fixtures`, compare clarity with the baseline.
+   scores; PERF-6 tested (keep `small.en`). **Fixed (first one-word takes, r52/r53):** good takes
+   were rejected because MFA's default search (beam 10) quietly mis-aligned recordings that are
+   mostly pauses, squashing every word into the first seconds; the aligner now always uses the
+   wide search (beam 100). r52/r53 now 80% / 86% clarity; r22/r23 (complete readings with small
+   slips, wrongly rejected by the same problem) relabelled good; retake check right on all 21
+   labelled recordings. **Next:** a couple more one-word takes, including deliberately bad ones.
 2. **Phase B: Host for free.** Choose the host after Phase A with real numbers (favourite:
    Hugging Face Spaces free CPU; fallbacks: Oracle Always Free VM, or your Mac + Cloudflare
    tunnel). Then HOST-1 (Docker, no Ollama) → HOST-5 (auto-delete) → HOST-6 (rate limits) →

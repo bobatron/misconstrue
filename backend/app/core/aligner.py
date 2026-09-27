@@ -135,13 +135,15 @@ def warm_up() -> None:
 
 
 def _run_mfa(wav: Path, transcript: Path, dictionary: str, result: Path, tmp: Path) -> None:
-    """Align with MFA's single-file aligner (`align_one`).
+    """Align with MFA's single-file aligner (`align_one`), always with a wide search.
 
     It skips MFA's corpus machinery (database, nine multi-process stages) built for thousands of
-    files. Like the corpus mode, a recording it can't fit is retried with a much wider search.
-    In-process first; the `mfa` command is the fallback if that breaks.
+    files. In-process first; the `mfa` command is the fallback if that breaks.
     """
-    searches = [None, _wide_beam_config(tmp)]
+    # Always the wide search. MFA's default (beam 10) doesn't fail on recordings that are mostly
+    # pauses (one word at a time): it quietly returns a wrong alignment, squashing every word into
+    # the first few seconds. The wide search gets them right, and is no worse elsewhere.
+    searches = [_wide_beam_config(tmp)]
     errors: list[str] = []
     if config.ALIGNER_MODE == "in_process":
         try:
