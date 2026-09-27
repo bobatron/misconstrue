@@ -8,7 +8,9 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | ID | Item | Area | Size | Priority | Depends on |
 |---|---|---|---|---|---|
 | BUG-1 | Turn camera & mic off after submitting | Bug | S | **P0** | — |
+| CONFIG-1 | Editable settings file (`.env`) | Tooling | S | **P0** | — |
 | TOOL-1 | Benchmark + intelligibility test harness | Tooling | M | **P0** | — |
+| CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
 | PERF-1 | Mini pronunciation dictionary per recording | Performance | S | **P0** | TOOL-1 (to measure) |
 | PERF-2 | Reuse MFA's cache between runs | Performance | S | P1 | PERF-1 |
 | PERF-3 | Keep MFA loaded as a long-running worker | Performance | M | P2 | PERF-1 |
@@ -36,9 +38,10 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-6 | Rate limiting & upload limits | Hosting | S | P3 | — |
 | HOST-7 | Consent / "this is a prank" notice | Hosting | S | P3 | — |
 | HOST-8 | LLM on the server (hosted model or GPU box) | Hosting | M | P3 | HOST-1 |
-| HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8 |
+| HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
+| HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** BUG-1 → TOOL-1 → PERF-1 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** BUG-1 → CONFIG-1 → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -71,6 +74,26 @@ The foundation for tuning speed and quality without guessing.
   close it is to the target sentence (word error rate).
 - Prints a before/after table so every change below can prove it helped.
 **Done when:** one command prints timing + intelligibility for all fixtures.
+
+### CONFIG-1 · Editable settings file  `S · P0`
+**Do:**
+- Load settings from a `.env` file at the project root (git-ignored), with a committed
+  `.env.example` listing every setting, grouped (masking / retake check / output video) and
+  commented in plain English, e.g. "higher = stricter".
+- Validate values on startup and print the settings in use.
+**Done when:** changing a value in `.env` and restarting changes the app's behaviour.
+
+### CONFIG-2 · Tuning page  `M · P1`
+**Do:**
+- A `/tune` page (local only) with sliders and switches for each setting, grouped as above.
+  Changes are saved (`data/settings.json`) and apply to the next video without a restart.
+- **Re-render:** pick an existing recording, change settings, remake its video without
+  recording again. Reuse the saved transcript and alignment so only the edit step reruns
+  (≈ 2 s).
+- **Compare:** before/after videos side by side, with the settings used and the TOOL-1
+  clarity score when available.
+- "Reset to defaults" button.
+**Done when:** you can try several playback speeds on one recording in under a minute.
 
 ---
 
@@ -257,6 +280,10 @@ The output video is already watermarked.
 ### HOST-8 · LLM on the server  `M · P3`
 A small server's CPU can't run Qwen3 8B quickly. Options: a GPU host, a smaller model, or a
 hosted model via the existing `LLM_PROVIDER` setting. Decide on cost vs quality.
+
+### HOST-10 · Lock down the tuning page  `S · P3`
+Before hosting, the `/tune` page and its API must be disabled or protected by a password, so
+visitors can't change settings or see other people's recordings.
 
 ### HOST-9 · Deploy  `M · P3`
 Choose a host (a VPS, Fly.io, Railway…), set up HTTPS and a domain (required for camera
