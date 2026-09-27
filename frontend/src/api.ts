@@ -13,12 +13,27 @@ export type RecordingStatus =
   | { status: 'needs_retake'; message: string; missing_tokens: number[] }
   | { status: 'done'; message: string; video_url: string; target_text: string }
 
+/** An API failure with a message fit to show people. `status` 0 = couldn't reach the server. */
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch {
+    throw new ApiError("Can't reach misconstrue right now. Check your internet connection and try again.", 0)
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     const detail = body?.detail
-    throw new Error(typeof detail === 'string' ? detail : `Something went wrong (${res.status})`)
+    if (typeof detail === 'string' && res.status < 500) throw new ApiError(detail, res.status)
+    throw new ApiError('Something went wrong on our side. Please try again in a moment.', res.status)
   }
   return res.json()
 }

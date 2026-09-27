@@ -19,21 +19,33 @@ export function useRecorder() {
   const start = useCallback(async () => {
     setError('')
     if (live.current?.active) return live.current
+    const problem = unsupported()
+    if (problem) {
+      setError(problem)
+      return null
+    }
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: { echoCancellation: true, noiseSuppression: true },
-      })
+      let s: MediaStream
+      try {
+        s = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: { echoCancellation: true, noiseSuppression: true },
+        })
+      } catch (err) {
+        // Some cameras reject our preferred settings: take whatever they offer instead.
+        if ((err as DOMException).name !== 'OverconstrainedError') throw err
+        s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      }
+      if (!s.getAudioTracks().length) {
+        s.getTracks().forEach((t) => t.stop())
+        setError("We can see you but can't hear you: no microphone was found, or it isn't allowed for this page.")
+        return null
+      }
       live.current = s
       setStream(s)
       return s
     } catch (err) {
-      const name = (err as DOMException).name
-      setError(
-        name === 'NotAllowedError'
-          ? 'We need your camera and microphone. Allow access in your browser settings and try again.'
-          : 'Could not start your camera. Is another app using it?',
-      )
+      setError(cameraErrorMessage((err as DOMException).name))
       return null
     }
   }, [])
@@ -88,4 +100,32 @@ export function useRecorder() {
   useEffect(() => release, [release])
 
   return { stream, recording, seconds, error, start, record, stop, release }
+}
+
+/** Why recording can't work in this browser at all, or null if it can. */
+function unsupported(): string | null {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return window.isSecureContext
+      ? "This browser can't use the camera. Try the latest Chrome, Safari or Firefox."
+      : 'The camera only works on a secure (https://) address. Open the link exactly as it was sent to you.'
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    return "This browser can't record video. Try the latest Chrome, Safari or Firefox."
+  }
+  return null
+}
+
+function cameraErrorMessage(name: string): string {
+  switch (name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Camera and microphone access was blocked. Allow them for this page (look for the camera icon in the address bar, or your browser settings) and try again.'
+    case 'NotFoundError':
+      return "We couldn't find a camera and microphone on this device."
+    case 'NotReadableError':
+    case 'AbortError':
+      return 'Your camera or microphone is busy in another app (a video call?). Close it and try again.'
+    default:
+      return "Couldn't start your camera. Please try again."
+  }
 }

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { type Challenge, getChallenge, getRecording, uploadRecording } from '../api'
+import { ApiError, type Challenge, getChallenge, getRecording, uploadRecording } from '../api'
 import { unlockAudio } from '../components/audio'
 import { type PromptTiming, usePrompter } from '../components/usePrompter'
 import { MAX_SECONDS, useRecorder } from '../components/useRecorder'
 
 type Retake = { message: string; missing: number[] }
+
+const SLOW_AFTER_MS = 3 * 60 * 1000 // usually ~10 s; after this, say so and offer options
 
 type Stage =
   | { name: 'loading' }
@@ -15,6 +17,8 @@ type Stage =
   | { name: 'recording'; retake?: Retake }
   | { name: 'review'; blob: Blob; url: string; retake?: Retake }
   | { name: 'processing' }
+  | { name: 'sendFailed'; blob: Blob; message: string } // upload didn't get through: keep the video, offer to resend
+  | { name: 'slow'; recording: string } // processing is taking unusually long
   | { name: 'done'; videoUrl: string; target: string }
   | { name: 'failed'; message: string }
 
@@ -56,7 +60,15 @@ export default function RecordPage() {
         setChallenge(c)
         setStage({ name: 'intro' })
       })
-      .catch((e) => setStage({ name: 'missing', message: e.message }))
+      .catch((e) =>
+        setStage({
+          name: 'missing',
+          message:
+            e instanceof ApiError && e.status === 404
+              ? "This link doesn't work. It might be mistyped, or it's been removed."
+              : e.message,
+        }),
+      )
   }, [slug])
 
   // Keep the live camera attached to the preview element whenever it's on screen.
@@ -80,22 +92,37 @@ export default function RecordPage() {
     else setStage({ name: 'intro' })
   }
 
-  async function submit(blob: Blob, url: string) {
+  async function submit(blob: Blob, url?: string) {
     rec.release()
-    URL.revokeObjectURL(url)
+    if (url) URL.revokeObjectURL(url)
     setStage({ name: 'processing' })
+    let recording: string
     try {
-      const { recording } = await uploadRecording(slug, blob, timings.current)
-      for (;;) {
-        await new Promise((r) => setTimeout(r, 1500))
-        const s = await getRecording(recording)
-        if (s.status === 'done') return setStage({ name: 'done', videoUrl: s.video_url, target: s.target_text })
-        if (s.status === 'needs_retake')
-          return backToRecording({ message: s.message, missing: s.missing_tokens })
-        if (s.status === 'failed') return setStage({ name: 'failed', message: s.message })
-      }
+      recording = (await uploadRecording(slug, blob, timings.current)).recording
     } catch (e) {
-      setStage({ name: 'failed', message: (e as Error).message })
+      // Keep the video so a bad connection doesn't mean recording it all again.
+      return setStage({ name: 'sendFailed', blob, message: (e as Error).message })
+    }
+    await waitForVideo(recording)
+  }
+
+  /** Poll until the video is ready, riding out brief connection drops. */
+  async function waitForVideo(recording: string) {
+    setStage({ name: 'processing' })
+    const started = Date.now()
+    let failures = 0
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1500))
+      if (Date.now() - started > SLOW_AFTER_MS) return setStage({ name: 'slow', recording })
+      try {
+        const s = await getRecording(recording)
+        failures = 0
+        if (s.status === 'done') return setStage({ name: 'done', videoUrl: s.video_url, target: s.target_text })
+        if (s.status === 'needs_retake') return backToRecording({ message: s.message, missing: s.missing_tokens })
+        if (s.status === 'failed') return setStage({ name: 'failed', message: s.message })
+      } catch (e) {
+        if (++failures >= 20) return setStage({ name: 'failed', message: (e as Error).message })
+      }
     }
   }
 
@@ -230,12 +257,38 @@ export default function RecordPage() {
         </main>
       )
 
+    case 'sendFailed':
+      return (
+        <main className="page">
+          <section className="card">
+            <h2>That didn't send</h2>
+            <p className="error">{stage.message}</p>
+            <p className="muted small">Your recording is still here, so you don't have to do it again.</p>
+            <button className="wide" onClick={() => submit(stage.blob)}>Send again</button>
+            <button className="secondary wide" onClick={() => backToRecording()}>Record again instead</button>
+          </section>
+        </main>
+      )
+
+    case 'slow':
+      return (
+        <main className="page">
+          <section className="card">
+            <h2>This is taking longer than usual</h2>
+            <p className="muted">It normally takes about 10 seconds. It may still finish.</p>
+            <button className="wide" onClick={() => waitForVideo(stage.recording)}>Keep waiting</button>
+            <button className="secondary wide" onClick={() => backToRecording()}>Record again</button>
+          </section>
+        </main>
+      )
+
     case 'failed':
       return (
         <main className="page">
           <section className="card">
+            <h2>Something went wrong</h2>
             <p className="error">{stage.message}</p>
-            <button className="wide" onClick={() => backToRecording()}>Try again</button>
+            <button className="wide" onClick={() => backToRecording()}>Record again</button>
           </section>
         </main>
       )

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { type Results, getResults } from '../api'
+import { ApiError, type Results, getResults } from '../api'
 import CopyField from '../components/CopyField'
 
 const POLL_MS = 4000
@@ -15,10 +15,20 @@ const STATUS_TEXT: Record<string, string> = {
 export default function ResultsPage() {
   const { token = '' } = useParams()
   const [results, setResults] = useState<Results | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState('') // page can't be shown at all
+  const [offline, setOffline] = useState(false) // a refresh failed; keep showing what we have
 
   const load = useCallback(
-    () => getResults(token).then(setResults).catch((e) => setError(e.message)),
+    () =>
+      getResults(token)
+        .then((r) => {
+          setResults(r)
+          setOffline(false)
+        })
+        .catch((e) => {
+          if (e instanceof ApiError && e.status === 404) setError("This results link doesn't work. It might be mistyped.")
+          else setOffline(true)
+        }),
     [token],
   )
 
@@ -36,7 +46,13 @@ export default function ResultsPage() {
       </main>
     )
   }
-  if (!results) return <main className="page"><p className="muted">Loading…</p></main>
+  if (!results) {
+    return (
+      <main className="page">
+        <p className="muted">{offline ? "Can't reach misconstrue right now. Retrying…" : 'Loading…'}</p>
+      </main>
+    )
+  }
 
   const done = results.recordings.filter((r) => r.video_url)
   const inProgress = results.recordings.filter((r) => !r.video_url)
@@ -47,6 +63,7 @@ export default function ResultsPage() {
       <h1 className="logo">misconstrue</h1>
       <p className="tagline">You asked them to say:</p>
       <blockquote className="masked">“{results.target_text}”</blockquote>
+      {offline && <p className="notice small">Connection lost. Retrying…</p>}
 
       {done.length === 0 && (
         <section className="card center">

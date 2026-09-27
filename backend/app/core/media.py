@@ -15,6 +15,10 @@ class MediaError(RuntimeError):
     pass
 
 
+class NoAudioError(MediaError):
+    """The upload has no sound track (microphone blocked or missing)."""
+
+
 def run(cmd: list[str]) -> None:
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -28,18 +32,25 @@ class Normalised:
     wav48: Path  # mono 48 kHz for output audio
 
 
-def has_audio(path: Path) -> bool:
+def stream_types(path: Path) -> set[str]:
+    """Kinds of stream in the file ("video", "audio"); MediaError if it can't be read at all."""
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "json", str(path)],
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "json", str(path)],
         capture_output=True, text=True,
     )
-    return bool(json.loads(out.stdout or "{}").get("streams"))
+    streams = json.loads(out.stdout or "{}").get("streams") or []
+    if out.returncode != 0 or not streams:
+        raise MediaError(f"Unreadable recording: {out.stderr.strip()[:300]}")
+    return {s.get("codec_type") for s in streams}
 
 
 def normalise(src: Path, workdir: Path) -> Normalised:
     workdir.mkdir(parents=True, exist_ok=True)
-    if not has_audio(src):
-        raise MediaError("The recording has no audio track")
+    kinds = stream_types(src)
+    if "audio" not in kinds:
+        raise NoAudioError("The recording has no audio track")
+    if "video" not in kinds:
+        raise MediaError("The recording has no video track")
     n = Normalised(workdir / "video.mp4", workdir / "audio16.wav", workdir / "audio48.wav")
     base = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src)]
     run(base + ["-an", "-vf", f"fps={config.FPS},scale=-2:{config.OUTPUT_HEIGHT},format=yuv420p",

@@ -113,7 +113,13 @@ def _run(
             with timer("normalise"):
                 norm = media.normalise(video, workdir)
         except media.MediaError as exc:
-            return PipelineResult("needs_retake", f"We couldn't read that recording ({exc}). Please try again.")
+            log.warning("couldn't read recording %s: %s", video, exc)
+            if isinstance(exc, media.NoAudioError):
+                message = ("We couldn't hear anything: the recording had no sound. Check that this page is allowed "
+                           "to use your microphone, then try again.")
+            else:
+                message = "That recording couldn't be opened. Please record it again."
+            return PipelineResult("needs_retake", message)
         with timer("transcribe"):
             heard = verify_read.transcribe(norm.wav16)
         _save_analysis(workdir, key, heard, None)
