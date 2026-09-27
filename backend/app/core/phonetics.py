@@ -29,6 +29,9 @@ BLOCKED_CARRIERS = {
     "killed", "killing", "murder", "suicide", "terrorist", "terrorism", "bomb", "cancer", "abortion",
     "slave", "slavery", "drug", "drugs", "cocaine", "heroin", "penis", "vagina", "nude", "naked",
     "schizophrenia", "hell", "damn", "god", "jesus", "allah", "gay", "lesbian", "negro", "jew",
+    # Sound like fillers ("um", "uh"), which Whisper leaves out of transcripts on purpose, so the
+    # retake check would think they were never said.
+    "am", "um", "uh", "ah", "er", "erm", "eh", "oh", "hm", "hmm", "mm", "huh", "uhm", "ha",
     "mrs", "mr", "dr", "st", "vs", "etc", "ok", "url", "www", "com", "html", "pdf", "usa", "uk",
 }
 

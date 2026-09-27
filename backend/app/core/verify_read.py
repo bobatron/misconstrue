@@ -152,7 +152,14 @@ def check(
                 continue
             hs, he = match[wi]
             _, ws, we = alignment.words[wi]
-            if abs((ws + we) / 2 - (hs + he) / 2) > config.MAX_WORD_TIME_DRIFT_S:
+            # The aligner is precise; Whisper's word timings are loose and often shifted. What
+            # matters is whether they touch: across all benchmark takes, every needed word in a good
+            # take touches or overlaps where Whisper heard it (gap 0.00 s), while bad takes had the
+            # aligner slip out of step (gaps of 0.11-0.60 s). Two rules that didn't work: comparing
+            # midpoints rejected good takes with prompter pauses (Whisper stretches a word back into
+            # the pause), and requiring overlap rejected good takes where the ranges only touch.
+            gap = max(0.0, max(ws, hs) - min(we, he))
+            if gap > config.MAX_WORD_TIME_GAP_S:
                 unclear.append(wi)
         if unclear:
             return GateResult(False, _message([masked[i] for i in unclear]), unclear, heard_text)

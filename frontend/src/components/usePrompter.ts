@@ -15,6 +15,7 @@ type Options = {
   stream: MediaStream | null
   active: boolean // true while recording
   silenceMs: number // pause after speech that moves on
+  minSpeechPerWordMs: number // ...but only after this much speech per word on screen
   hintAfterS: number // no speech this long -> highlight Next
   onFinish: (timings: PromptTiming[]) => void
 }
@@ -23,12 +24,13 @@ const COUNTDOWN_MS = 1500 // also used to measure background noise
 const GRACE_MS = 300 // ignore sound right after a prompt appears (tail of the previous one)
 const MIN_SPEECH_MS = 120 // shorter blips (a cough, a click) aren't speech
 const TICK_MS = 30
+const LONG_PAUSE_MS = 2000 // after some speech, a pause this long moves on regardless
 
 /**
  * Shows the masked sentence a few words at a time and moves on when the reader has said them:
  * speech starts, then there's a pause of `silenceMs`. Space / → = next, ← = back.
  */
-export function usePrompter({ prompts, stream, active, silenceMs, hintAfterS, onFinish }: Options) {
+export function usePrompter({ prompts, stream, active, silenceMs, minSpeechPerWordMs, hintAfterS, onFinish }: Options) {
   const [phase, setPhase] = useState<'idle' | 'countdown' | 'prompting' | 'done'>('idle')
   const [countdown, setCountdown] = useState(3)
   const [index, setIndex] = useState(0)
@@ -39,6 +41,7 @@ export function usePrompter({ prompts, stream, active, silenceMs, hintAfterS, on
   // Mutable state for the audio loop (avoids stale closures in setInterval).
   const s = useRef({
     t0: 0, index: 0, shownAt: 0, candidate: 0, speechStart: 0, lastVoice: 0, speaking: false,
+    voicedMs: 0, // speech heard so far for the current prompt
     timings: [] as PromptTiming[],
   })
   const finish = useRef(onFinish)
@@ -52,6 +55,7 @@ export function usePrompter({ prompts, stream, active, silenceMs, hintAfterS, on
     st.shownAt = performance.now()
     st.candidate = 0
     st.speaking = false
+    st.voicedMs = 0
     setIndex(i)
     setSpeaking(false)
     setHint(false)
@@ -132,12 +136,26 @@ export function usePrompter({ prompts, stream, active, silenceMs, hintAfterS, on
           setSpeaking(true)
           setHint(false)
         }
-        if (st.speaking) st.lastVoice = now
+        if (st.speaking) {
+          st.voicedMs += TICK_MS
+          st.lastVoice = now
+        }
       } else {
         st.candidate = 0
-        if (st.speaking && now - st.lastVoice >= silenceMs) {
-          advance('speech')
-        } else if (!st.speaking && !st.speechStart && now - st.shownAt > hintAfterS * 1000) {
+        // A pause means "done" only once enough has been said for the words on screen;
+        // otherwise it's a pause between words and we keep listening. A long pause after some
+        // speech means done anyway (someone who reads very quickly).
+        const words = prompts[st.index]?.tokens.length ?? 1
+        const saidEnough = st.voicedMs >= words * minSpeechPerWordMs
+        const pause = now - st.lastVoice
+        if (st.speechStart) {
+          if ((pause >= silenceMs && saidEnough) || pause >= LONG_PAUSE_MS) {
+            advance('speech')
+          } else if (st.speaking && pause >= silenceMs) {
+            st.speaking = false // wait for the rest of the prompt
+            setSpeaking(false)
+          }
+        } else if (now - st.shownAt > hintAfterS * 1000) {
           setHint(true)
         }
       }
@@ -148,7 +166,7 @@ export function usePrompter({ prompts, stream, active, silenceMs, hintAfterS, on
       vad.close()
       setPhase('idle')
     }
-  }, [active, stream, prompts.length, silenceMs, hintAfterS, show, advance])
+  }, [active, stream, prompts, silenceMs, minSpeechPerWordMs, hintAfterS, show, advance])
 
   // Keyboard shortcuts while prompting.
   useEffect(() => {

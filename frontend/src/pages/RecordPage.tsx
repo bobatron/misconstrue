@@ -45,6 +45,7 @@ export default function RecordPage() {
     stream: rec.stream,
     active: stage.name === 'recording',
     silenceMs: challenge?.prompter.advance_silence_ms ?? 600,
+    minSpeechPerWordMs: challenge?.prompter.min_speech_per_word_ms ?? 200,
     hintAfterS: challenge?.prompter.hint_after_s ?? 6,
     onFinish: onPromptsDone,
   })

@@ -5,7 +5,7 @@ export type Challenge = {
   masked_text: string
   tokens: string[]
   prompts: Prompt[]
-  prompter: { advance_silence_ms: number; hint_after_s: number }
+  prompter: { advance_silence_ms: number; min_speech_per_word_ms: number; hint_after_s: number }
 }
 
 export type RecordingStatus =

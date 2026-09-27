@@ -72,6 +72,7 @@ def get_challenge(slug: str) -> dict:
         "prompts": split_prompts(ch.masked_text, config.WORDS_PER_PROMPT),
         "prompter": {
             "advance_silence_ms": config.ADVANCE_SILENCE_MS,
+            "min_speech_per_word_ms": config.MIN_SPEECH_PER_WORD_MS,
             "hint_after_s": config.PROMPT_HINT_S,
         },
     }

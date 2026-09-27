@@ -83,9 +83,10 @@ class Settings(BaseModel):
     MIN_CRITICAL_PHONE_MS: float = setting(
         35, "check", "Needed words whose sounds average shorter than this (ms) are treated as not really "
         "said (mumbled or skipped). Higher = stricter.", ge=0, le=200)
-    MAX_WORD_TIME_DRIFT_S: float = setting(
-        0.6, "check", "How far (seconds) the aligner and the transcriber may disagree about when a needed "
-        "word was said. Lower = stricter.", ge=0.05, le=5.0)
+    MAX_WORD_TIME_GAP_S: float = setting(
+        0.05, "check", "Largest gap (seconds) allowed between where the aligner put a needed word and where the "
+        "transcriber heard it. Catches the aligner slipping out of step with the speech. Lower = stricter.",
+        ge=0.0, le=2.0)
     MAX_RETAKES: int = setting(
         5, "check", "After this many attempts, make the best video we can instead of asking again.",
         ge=1, le=50)
@@ -97,6 +98,9 @@ class Settings(BaseModel):
     ADVANCE_SILENCE_MS: float = setting(
         600, "recording", "How long a pause (ms) after speaking moves on to the next prompt. Longer = fewer "
         "accidental skips mid-phrase, but slower.", ge=200, le=2000)
+    MIN_SPEECH_PER_WORD_MS: float = setting(
+        200, "recording", "A pause only moves on once this much speech (ms) per word on screen has been heard, so "
+        "pausing between words ('Pilot... am... forehead') doesn't skip the rest.", ge=0, le=600)
     PROMPT_HINT_S: float = setting(
         6, "recording", "If no speech is heard for this long (seconds), highlight the Next button so nobody gets "
         "stuck (e.g. a quiet voice).", ge=2, le=30)
