@@ -1,0 +1,18 @@
+# Python libraries for the backend. Used by the conda environment (environment.yml, which adds
+# Python itself and the Montreal Forced Aligner) and directly by CI.
+# Versions are pinned to what's been tested; update them deliberately.
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+sqlmodel==0.0.47
+httpx==0.28.1
+pydantic==2.13.5
+python-dotenv==1.2.3
+pronouncing==0.3.0
+g2p_en==2.1.0
+wordfreq==3.1.1
+faster-whisper==1.2.1
+numpy==2.4.6
+soundfile==0.14.0
+pillow==12.3.0
+pytest==9.1.1

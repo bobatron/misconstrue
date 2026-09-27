@@ -1,5 +1,7 @@
 # misconstrue
 
+[![CI](https://github.com/bobatron/misconstrue/actions/workflows/ci.yml/badge.svg)](https://github.com/bobatron/misconstrue/actions/workflows/ci.yml)
+
 A fun app: User 1 types a sentence. The app writes a different, innocent-looking
 **masked sentence** and gives User 1 a share link. User 2 opens the link and records
 themselves reading the masked sentence. The app then chops the recording up at the
