@@ -7,7 +7,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 
 | ID | Item | Area | Size | Priority | Depends on |
 |---|---|---|---|---|---|
-| BUG-1 | Turn camera & mic off after submitting | Bug | S | **P0** | — |
+| BUG-1 | ✅ Turn camera & mic off after submitting | Bug | S | Done | — |
 | CONFIG-1 | Editable settings file (`.env`) | Tooling | S | **P0** | — |
 | TOOL-1 | Benchmark + intelligibility test harness | Tooling | M | **P0** | — |
 | CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
@@ -41,13 +41,13 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** BUG-1 → CONFIG-1 → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → CONFIG-1 → TOOL-1 → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
 ## Bug
 
-### BUG-1 · Turn camera & mic off after submitting  `S · P0`
+### BUG-1 · Turn camera & mic off after submitting  `S · ✅ Done`
 **Problem:** after User 2 presses Submit, the browser tab (and the device's indicator) still
 shows the camera and microphone as in use.
 **Cause:** the page keeps the camera stream open until it closes, so that retakes can

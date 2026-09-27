@@ -43,7 +43,15 @@ export default function RecordPage() {
     setStage({ name: 'review', blob, url: URL.createObjectURL(blob) })
   }
 
-  async function submit(blob: Blob) {
+  /** Camera back on (no permission prompt the second time), then back to the record screen. */
+  async function backToRecording(retake?: { message: string; missing: number[] }) {
+    if (await rec.start()) setStage({ name: 'ready', retake })
+    else setStage({ name: 'intro' })
+  }
+
+  async function submit(blob: Blob, url: string) {
+    rec.release()
+    URL.revokeObjectURL(url)
     setStage({ name: 'processing' })
     try {
       const { recording_id } = await uploadRecording(slug, blob)
@@ -52,7 +60,7 @@ export default function RecordPage() {
         const s = await getRecording(recording_id)
         if (s.status === 'done') return setStage({ name: 'done', videoUrl: s.video_url, target: s.target_text })
         if (s.status === 'needs_retake')
-          return setStage({ name: 'ready', retake: { message: s.message, missing: s.missing_tokens } })
+          return backToRecording({ message: s.message, missing: s.missing_tokens })
         if (s.status === 'failed') return setStage({ name: 'failed', message: s.message })
       }
     } catch (e) {
@@ -128,7 +136,7 @@ export default function RecordPage() {
           <p className="muted small">Happy with it?</p>
           <div className="button-row">
             <button className="secondary" onClick={() => setStage({ name: 'ready' })}>Retake</button>
-            <button onClick={() => submit(stage.blob)}>Submit</button>
+            <button onClick={() => submit(stage.blob, stage.url)}>Submit</button>
           </div>
         </main>
       )
@@ -163,7 +171,7 @@ export default function RecordPage() {
         <main className="page">
           <section className="card">
             <p className="error">{stage.message}</p>
-            <button className="wide" onClick={() => setStage({ name: 'ready' })}>Try again</button>
+            <button className="wide" onClick={() => backToRecording()}>Try again</button>
           </section>
         </main>
       )

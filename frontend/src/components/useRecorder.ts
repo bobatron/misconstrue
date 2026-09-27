@@ -14,14 +14,17 @@ export function useRecorder() {
   const [seconds, setSeconds] = useState(0)
   const [error, setError] = useState('')
   const recorder = useRef<MediaRecorder | null>(null)
+  const live = useRef<MediaStream | null>(null)
 
   const start = useCallback(async () => {
     setError('')
+    if (live.current?.active) return live.current
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: { echoCancellation: true, noiseSuppression: true },
       })
+      live.current = s
       setStream(s)
       return s
     } catch (err) {
@@ -72,7 +75,16 @@ export function useRecorder() {
     return () => clearInterval(id)
   }, [recording])
 
-  useEffect(() => () => stream?.getTracks().forEach((t) => t.stop()), [stream])
+  /** Turns the camera and microphone off (the browser's "in use" indicator goes away). */
+  const release = useCallback(() => {
+    if (recorder.current?.state === 'recording') recorder.current.stop()
+    live.current?.getTracks().forEach((t) => t.stop())
+    live.current = null
+    setStream(null)
+  }, [])
 
-  return { stream, recording, seconds, error, start, record, stop }
+  // Always switch off when leaving the page.
+  useEffect(() => release, [release])
+
+  return { stream, recording, seconds, error, start, record, stop, release }
 }
