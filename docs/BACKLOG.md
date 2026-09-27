@@ -16,7 +16,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | PERF-3 | Keep MFA loaded as a long-running worker | Performance | M | P2 | PERF-1 |
 | PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2) | Performance | M | P2 | TOOL-1 |
 | PERF-4b | Ship the in-memory aligner behind a setting | Performance | M | P3 | PERF-4a |
-| PERF-5 | Load Whisper at startup, not on first upload | Performance | S | P1 | — |
+| PERF-5 | ✅ Load Whisper at startup, not on first upload | Performance | S | Done | — |
 | QUAL-1 | ✅ Slow down the final sentence (time-stretch) | Quality | M | Done | TOOL-1 |
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
@@ -48,7 +48,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** PERF-5 → POL-5 → POL-2 → POL-3 → POL-4 → HOST-2 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → POL-5 → POL-2 → POL-3 → POL-4 → HOST-2 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
@@ -56,7 +56,7 @@ then publish):
 4. **Optional / later:** REC-2, REC-3, PERF-2 (mostly covered by CONFIG-2's analysis cache),
    PERF-3, PERF-4a/b
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -173,9 +173,13 @@ If PERF-4a says go: implement it behind the existing aligner interface with
 `ALIGNER=mfa|wav2vec2`, keeping MFA as the fallback. Also removes the heavy MFA/conda
 dependency, which makes hosting easier.
 
-### PERF-5 · Load Whisper at startup  `S · P1`
+### PERF-5 · Load Whisper at startup  `S · ✅ Done`
 Whisper loads on the first upload (≈ 1 s). Load it when the backend starts, like the word
 index. Small, but free.
+
+**Result:** Whisper and the aligner's dictionary load on the worker thread at startup (1.5 s,
+logged as "Speech models ready"), so the server answers immediately and the first upload after a
+restart saves ~0.8 s on its transcribe step (2.6 s → 1.8 s). Later uploads were never affected.
 
 ---
 
