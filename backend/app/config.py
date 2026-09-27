@@ -126,6 +126,9 @@ class Settings(BaseModel):
     OLLAMA_URL: str = setting("http://localhost:11434", "system", "Where Ollama is listening.")
     WHISPER_MODEL: str = setting(
         "small.en", "system", "Whisper model for the retake check (tiny.en, base.en, small.en, medium.en).")
+    ALIGNER_MODE: Literal["in_process", "command"] = setting(
+        "in_process", "system", "How to run the aligner: 'in_process' keeps it loaded (~0.4 s per recording); "
+        "'command' starts the mfa program each time (~4 s). in_process falls back to command if it breaks.")
     MFA_ACOUSTIC_MODEL: str = setting("english_us_arpa", "system", "Montreal Forced Aligner acoustic model.")
     MFA_DICTIONARY: str = setting("english_us_arpa", "system", "Montreal Forced Aligner pronunciation dictionary.")
     MFA_ROOT_DIR: Path = setting(Path.home() / "Documents" / "MFA", "system", "Where MFA keeps its models.")

@@ -277,7 +277,13 @@ def cmd_run(args: argparse.Namespace) -> None:
     (out_dir / "results.json").write_text(json.dumps(result, indent=2) + "\n")
 
     _print_table(rows, baseline)
-    _print_summary(result["summary"], baseline)
+    if baseline and len(baseline["rows"]) != len(rows):
+        # Summaries must cover the same fixtures to be comparable.
+        common = {r["name"] for r in baseline["rows"]}
+        print(f"\n(summary below covers the {len(common)} fixture(s) both runs have)")
+        _print_summary(_summary([r for r in rows if r["name"] in common]), baseline)
+    else:
+        _print_summary(result["summary"], baseline)
     if args.save_baseline:
         BASELINE.write_text(json.dumps(result, indent=2) + "\n")
         print(f"\nSaved as the baseline ({BASELINE.relative_to(config.ROOT)})")

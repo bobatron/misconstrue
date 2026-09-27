@@ -211,31 +211,29 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 
 ## How long does it take?
 
-About **19 seconds** per video (averaged over 9 of your recordings with `make bench`):
+About **6 seconds** per video (averaged over your recordings with `make bench`):
 
-| Step | Before PERF-1 | Now |
-|---|---|---|
-| Convert the upload (ffmpeg) | 0.8 s | 0.7 s |
-| Run Whisper (the check) | 2.5 s | 2.2 s |
-| **Align (MFA)** | **43.3 s** | **13.9 s** |
-| Plan the cuts | < 0.1 s | < 0.1 s |
-| Build the video | 1.6 s | 1.3 s |
-| **Total** | **48.4 s** | **18.4 s** |
+| Step | Originally | After PERF-1 | Now |
+|---|---|---|---|
+| Convert the upload (ffmpeg) | 0.8 s | 0.7 s | 0.7 s |
+| Run Whisper (the check) | 2.5 s | 2.2 s | 2.2 s |
+| **Align (MFA)** | **43.3 s** | **13.9 s** | **0.35 s** |
+| Plan the cuts | < 0.1 s | < 0.1 s | < 0.1 s |
+| Build the video (incl. slow-down) | 1.6 s | 1.3 s | 2.0 s |
+| **Total** | **48.4 s** | **18.4 s** | **5.8 s** |
 
-The big win came from giving MFA a **mini dictionary** with only the sentence's words:
-it was spending most of its time loading all 200,000 words. Alignment is still most of the
-wait, and there are further options, from easiest to biggest:
+How alignment got 120× faster:
+1. **Mini dictionary:** MFA was loading all 200,000 words for a 25-word sentence.
+2. **Single-file mode:** MFA's normal mode is built for aligning thousands of files: it sets up
+   a database and runs nine stages, each starting helper processes (~1 s each, even for one
+   short clip). Its single-file mode skips all that, with identical results.
+3. **Kept loaded:** instead of starting the `mfa` program for every recording (~2.5 s just to
+   load its libraries), the backend loads it once at startup and calls it directly. MFA adds a
+   little random noise to the audio it analyses, so a fixed random seed keeps results
+   repeatable. If a recording is hard to fit, it retries with a wider search, as MFA's normal
+   mode does; if the in-process aligner ever breaks, it falls back to the `mfa` program.
 
-| Option | Effort | Expected total |
-|---|---|---|
-| ✅ **Mini dictionary** with only the sentence's words (done: 48 s → 18 s) | Small | 18 s |
-| Keep MFA's cache between runs. *Tested: a repeat run took 10 s.* Could be combined with the above. | Small | ~15 s |
-| Keep MFA loaded in memory as a long-running worker, instead of starting it fresh each time | Medium | ~5–8 s |
-| Swap MFA for an in-memory aligner (torchaudio + a wav2vec2 speech model) | Larger | ~3–5 s |
-
-The first two are low-risk and would roughly halve or third the wait.
-
----
+Whisper and building the video are now the biggest steps.
 
 ## What runs where
 

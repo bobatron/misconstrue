@@ -1,6 +1,7 @@
 """Phone-level timestamps for a recording of a known sentence (Montreal Forced Aligner)."""
 from __future__ import annotations
 
+import ctypes
 import json
 import logging
 import shutil
@@ -10,6 +11,7 @@ import tempfile
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from types import SimpleNamespace
 
 from app import config
 from app.core.phonetics import Phone, strip_stress, tokenize
@@ -79,29 +81,113 @@ def dictionary_for(words: list[str], folder: Path) -> str:
     missing = sorted({w for w in words if w not in lines})
     if missing:
         log.info("Not in the dictionary, aligning with the full one: %s", ", ".join(missing))
-        return config.MFA_DICTIONARY
+        return str(path)
     mini = folder / "sentence.dict"
     mini.write_text("\n".join(line for w in dict.fromkeys(words) for line in lines[w]) + "\n", encoding="utf-8")
     return str(mini)
 
 
+WIDE_BEAM = {"beam": 100, "retry_beam": 400}
+DITHER_SEED = 1  # MFA adds random "dither" noise to audio features; a fixed seed makes results repeatable
+
+
+class _InProcessAligner:
+    """MFA's single-file aligner called directly, so its libraries (~2.5 s to import) and the
+    acoustic model stay loaded between recordings: ~0.4 s per alignment instead of ~4 s."""
+
+    def __init__(self) -> None:
+        from montreal_forced_aligner import config as mfa_config
+        from montreal_forced_aligner.models import AcousticModel
+
+        mfa_config.TEMPORARY_DIRECTORY = config.DATA_DIR / "mfa"  # where the model is unpacked
+        path = config.MFA_ROOT_DIR / "pretrained_models" / "acoustic" / f"{config.MFA_ACOUSTIC_MODEL}.zip"
+        self.acoustic_model = AcousticModel(path)
+        self._libc = ctypes.CDLL(None)
+
+    def align(self, wav: Path, transcript: Path, dictionary: str, result: Path, tmp: Path, config_path: Path | None) -> None:
+        from montreal_forced_aligner import config as mfa_config
+        from montreal_forced_aligner.command_line.align_one import align_one_function
+        from montreal_forced_aligner.models import DictionaryModel
+
+        mfa_config.TEMPORARY_DIRECTORY = tmp
+        mfa_config.CLEAN = True  # never reuse a lexicon compiled for another sentence
+        self._libc.srand(DITHER_SEED)
+        kwargs = {
+            "sound_file_path": wav, "text_file_path": transcript, "output_path": result,
+            "output_format": "json", "no_tokenization": False, "config_path": config_path,
+        }
+        # The command-line wrapper only reads these two attributes from its click context.
+        context = SimpleNamespace(params={}, args=[])
+        align_one_function(context, kwargs, self.acoustic_model, DictionaryModel(Path(dictionary)), None)
+
+
+@lru_cache(maxsize=1)
+def _in_process() -> _InProcessAligner:
+    return _InProcessAligner()
+
+
+def warm_up() -> None:
+    """Load the aligner's libraries and model now rather than on the first recording."""
+    if config.ALIGNER_MODE == "in_process":
+        _in_process()
+    if config.PRONUNCIATION_DICT.exists():
+        _dictionary_lines(config.PRONUNCIATION_DICT)
+
+
+def _run_mfa(wav: Path, transcript: Path, dictionary: str, result: Path, tmp: Path) -> None:
+    """Align with MFA's single-file aligner (`align_one`).
+
+    It skips MFA's corpus machinery (database, nine multi-process stages) built for thousands of
+    files. Like the corpus mode, a recording it can't fit is retried with a much wider search.
+    In-process first; the `mfa` command is the fallback if that breaks.
+    """
+    searches = [None, _wide_beam_config(tmp)]
+    errors: list[str] = []
+    if config.ALIGNER_MODE == "in_process":
+        try:
+            in_process = _in_process()
+        except Exception as exc:  # e.g. an MFA version with different internals
+            log.warning("Can't align in-process (%s); using the mfa command", exc)
+            in_process = None
+        if in_process:
+            for attempt, search in enumerate(searches):
+                try:
+                    in_process.align(wav, transcript, dictionary, result, tmp / f"mfa_tmp{attempt}", search)
+                    return
+                except Exception as exc:
+                    errors.append(repr(exc))
+                    log.info("In-process alignment %s failed: %s", "retry" if attempt else "attempt", exc)
+            log.warning("In-process alignment failed; trying the mfa command")
+
+    for attempt, search in enumerate(searches):
+        cmd = [
+            _mfa(), "align_one", str(wav), str(transcript), dictionary, config.MFA_ACOUSTIC_MODEL, str(result),
+            "--output_format", "json", "--quiet", "--temporary_directory", str(tmp / f"mfa_cmd{attempt}"),
+        ]
+        if search:
+            cmd += ["--config_path", str(search)]
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode == 0 and result.exists():
+            return
+        errors.append(proc.stderr[-1500:] or proc.stdout[-1500:])
+    raise AlignmentError("MFA failed: " + "\n---\n".join(errors))
+
+
+def _wide_beam_config(folder: Path) -> Path:
+    path = folder / "wide_beam.yaml"
+    path.write_text("".join(f"{k}: {v}\n" for k, v in WIDE_BEAM.items()))
+    return path
+
+
 def align(wav_16k: Path, text: str) -> Alignment:
     words = tokenize(text)
-    with tempfile.TemporaryDirectory(prefix="mfa_") as tmp:
-        corpus, out = Path(tmp) / "corpus", Path(tmp) / "out"
-        corpus.mkdir()
-        shutil.copy(wav_16k, corpus / "rec.wav")
-        (corpus / "rec.lab").write_text(" ".join(words))
-        dictionary = dictionary_for(words, Path(tmp))
-        cmd = [
-            _mfa(), "align", str(corpus), dictionary, config.MFA_ACOUSTIC_MODEL, str(out),
-            "--output_format", "json", "--clean", "--single_speaker", "--quiet",
-            "--temporary_directory", str(Path(tmp) / "mfa_tmp"),
-        ]
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        result = out / "rec.json"
-        if proc.returncode != 0 or not result.exists():
-            raise AlignmentError(f"MFA failed: {proc.stderr[-2000:] or proc.stdout[-2000:]}")
+    with tempfile.TemporaryDirectory(prefix="mfa_") as tmp_name:
+        tmp = Path(tmp_name)
+        transcript = tmp / "rec.lab"
+        transcript.write_text(" ".join(words))
+        dictionary = dictionary_for(words, tmp)
+        result = tmp / "rec.json"
+        _run_mfa(wav_16k, transcript, dictionary, result, tmp)
         data = json.loads(result.read_text())
 
     tiers = data["tiers"]

@@ -12,9 +12,9 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | TOOL-1 | ✅ Benchmark + intelligibility test harness | Tooling | M | Done | — |
 | CONFIG-2 | ✅ Tuning page: live settings + re-render a saved recording | Tooling | M | Done | CONFIG-1 |
 | PERF-1 | ✅ Mini pronunciation dictionary per recording | Performance | S | Done | TOOL-1 (to measure) |
-| PERF-2 | Reuse MFA's cache between runs | Performance | S | P1 | PERF-1 |
-| PERF-3 | Keep MFA loaded as a long-running worker | Performance | M | P2 | PERF-1 |
-| PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2) | Performance | M | P2 | TOOL-1 |
+| PERF-2 | ❌ Reuse MFA's cache between runs: unsafe, closed | Performance | S | Closed | PERF-1 |
+| PERF-3 | ✅ Keep MFA loaded (in-process single-file aligner) | Performance | M | Done | PERF-1 |
+| PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2): no longer needed for speed | Performance | M | P3 | TOOL-1 |
 | PERF-4b | Ship the in-memory aligner behind a setting | Performance | M | P3 | PERF-4a |
 | PERF-5 | ✅ Load Whisper at startup, not on first upload | Performance | S | Done | — |
 | QUAL-1 | ✅ Slow down the final sentence (time-stretch) | Quality | M | Done | TOOL-1 |
@@ -53,10 +53,9 @@ then publish):
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
-4. **Optional / later:** REC-2, REC-3, PERF-2 (mostly covered by CONFIG-2's analysis cache),
-   PERF-3, PERF-4a/b
+4. **Optional / later:** REC-2, REC-3, PERF-4a/b
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -140,7 +139,12 @@ or equal-quality results.
 **Result:** align 43.3 s → 13.9 s, total 48.4 s → 18.4 s per video; clarity identical on every
 fixture; retake check still 15/15. Saved as the new benchmark baseline.
 
-### PERF-2 · Reuse MFA's cache between runs  `S · P1`
+### PERF-2 · Reuse MFA's cache between runs  `S · ❌ Closed: unsafe`
+**Finding (27 Sep 2026):** with the cache kept, MFA returned the *previous* recording's words
+for a new recording at the same corpus path: it reuses results rather than aligning faster.
+Sharing it between retakes (the plan below) would have given retakes wrong timings. Re-running
+the same recording is already covered by CONFIG-2's analysis cache. PERF-3 made it moot.
+
 MFA caches its set-up work, but we currently wipe it after each run (`--clean`).
 Tested by hand: a repeat run took 10 s instead of 43 s.
 **Do:**
@@ -150,7 +154,20 @@ Tested by hand: a repeat run took 10 s instead of 43 s.
 - Safe because recordings are processed one at a time; clear old caches alongside HOST-5.
 **Done when:** a retake aligns in ≈ 10 s or less; no stale results between different links.
 
-### PERF-3 · Keep MFA loaded as a long-running worker  `M · P2`
+### PERF-3 · Keep MFA loaded as a long-running worker  `M · ✅ Done`
+**Result:** profiling showed MFA's time was overhead: ~3 s of start-up, then nine ~1 s stages of
+corpus machinery (database, multiprocessing) built for thousands of files. Two steps:
+1. `mfa align_one` (single-file mode): same speech timings, align 14 s → 4 s. It lacked the
+   corpus mode's wider-search retry, so one good take (r19) failed: added a retry with
+   beam 100 / retry 400.
+2. MFA's own `align_one_function` called in-process with the acoustic model kept loaded and a
+   fixed dither seed (MFA adds random noise to features, so results are repeatable only with a
+   fixed seed): align 4 s → 0.35 s. Falls back to the command if it ever breaks
+   (`ALIGNER_MODE` setting).
+Benchmark (18 recordings): **19.0 s → 5.8 s per video**; clarity unchanged (49% / 68% vs
+50% / 69%, per-fixture identical on 8 of 9 shared videos, r18 −4%); retake check all correct.
+Loaded at startup by the PERF-5 warm-up.
+
 Instead of starting the `mfa` program fresh each time (paying start-up cost), load the aligner
 once when the backend starts and keep it in memory.
 **Do:**
@@ -160,7 +177,9 @@ once when the backend starts and keep it in memory.
 **Done when:** alignment ≈ 2–5 s; total ≈ 8–10 s.
 **Risk:** MFA's internal API isn't designed for this and may change between versions.
 
-### PERF-4a · Spike: in-memory aligner (torchaudio + wav2vec2)  `M · P2`
+### PERF-4a · Spike: in-memory aligner (torchaudio + wav2vec2)  `M · P3`
+*Update: PERF-3 got alignment to 0.35 s, so this is no longer worth doing for speed. It could
+still matter for hosting (dropping the heavy MFA/conda dependency).*
 A different aligner that runs entirely in memory and takes about a second.
 **Do (time-boxed experiment):**
 - Use `torchaudio.functional.forced_align` with a phoneme-recognition model.

@@ -200,7 +200,7 @@ export default function RecordPage() {
           <section className="card center">
             <div className="spinner" />
             <h2>Processing…</h2>
-            <p className="muted">Checking your recording. This takes about 20 seconds.</p>
+            <p className="muted">Checking your recording. This takes about 10 seconds.</p>
           </section>
         </main>
       )

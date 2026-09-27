@@ -35,8 +35,7 @@ def _warm_up() -> None:
     start = time.perf_counter()
     try:
         verify_read._whisper()
-        if config.PRONUNCIATION_DICT.exists():
-            aligner._dictionary_lines(config.PRONUNCIATION_DICT)
+        aligner.warm_up()
         log.info("Speech models ready in %.1fs", time.perf_counter() - start)
     except Exception:
         log.exception("Warming up the speech models failed; they'll load on the first upload instead")

@@ -24,4 +24,4 @@ def test_mini_dictionary_keeps_every_variant_and_only_needed_words(tmp_path, mon
 
 def test_falls_back_to_full_dictionary_for_unknown_words(tmp_path, monkeypatch):
     _use_dict(tmp_path, monkeypatch)
-    assert aligner.dictionary_for(["hello", "zzyzx"], tmp_path) == config.MFA_DICTIONARY
+    assert aligner.dictionary_for(["hello", "zzyzx"], tmp_path) == str(tmp_path / "full.dict")
