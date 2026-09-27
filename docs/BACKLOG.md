@@ -33,7 +33,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | POL-1 | Tune the completeness check on real recordings | Polish | M | P2 | TOOL-1 |
 | POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
 | FEAT-1 | ✅ User 1 can see the finished video (private results link) | Feature | M | Done | — |
-| FEAT-2 | Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | P1 | — |
+| FEAT-2 | ✅ Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | Done | — |
 | POL-3 | Better masked sentences (fewer word-list fallbacks) | Polish | M | P2 | — |
 | POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
 | POL-5 | ✅ Friendlier error & edge-case screens | Polish | S | Done | — |
@@ -52,14 +52,14 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → ~~POL-5~~ → FEAT-2 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → ~~POL-5~~ → ~~FEAT-2~~ → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
 3. **Publish:** HOST-9
 4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ · built, awaiting more
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ ~~FEAT-2~~ · built, awaiting more
 real recordings: REC-1
 
 ---
@@ -395,7 +395,7 @@ the friend reads, progress, and the finished videos with download, checking by i
 codes. Existing links and recordings got codes automatically. User 2 now sees "The person who
 sent you this link will see the video." Tested end to end in the browser; 5 new API tests.
 
-### FEAT-2 · Mirrored playback  `S · P1`
+### FEAT-2 · Mirrored playback  `S · ✅ Done`
 The live camera preview is mirrored (natural when looking at yourself). Browser video controls
 can't be flipped separately from the picture, so a mirrored *review* needs our own simple
 controls (play/pause, scrub, watch again). Also decide whether the *finished* video should be
@@ -404,6 +404,10 @@ apps you see yourself mirrored, but the other person sees you un-mirrored.
 **Decided (27 Sep 2026): option (a).** Mirror only the review User 2 watches before submitting,
 using custom controls (play/pause, scrub, watch again) so the controls read normally. The
 finished video stays un-mirrored for both users.
+
+**Result:** `MirroredPlayer` on the review screen: mirrored picture; play/pause, scrub bar and
+time underneath read normally; tap the video to play/pause. Handles Chrome not knowing a fresh
+recording's length. Checked in the browser (mirrored video, unmirrored controls, play, seek).
 
 ## Polish (rest of the original Phase 4)
 

@@ -129,10 +129,22 @@ button.stop { background: var(--text); color: var(--bg); }
   margin: 0 auto;
 }
 .camera { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* Live camera only: a mirror image feels natural while looking at yourself. Never on videos
-   with controls (the flip would mirror the controls too); recordings play the right way round,
-   as the friend will see them. */
+/* A mirror image feels natural while looking at yourself: the live camera and the review before
+   submitting. Never on a video with the browser's own controls (they'd be mirrored too): the
+   review uses MirroredPlayer's controls instead. The finished video is never mirrored. */
 .mirrored { transform: scaleX(-1); }
+
+.player-controls {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  color: #fff; font-size: 0.85rem; font-weight: 600;
+}
+.player-toggle {
+  background: rgba(255, 255, 255, 0.2); color: #fff; padding: 0; width: 36px; height: 36px;
+  border-radius: 50%; font-size: 0.9rem; flex: none;
+}
+.player-seek { flex: 1; min-width: 0; accent-color: var(--accent); }
+.player-time { flex: none; font-variant-numeric: tabular-nums; }
 .rec-dot {
   position: absolute; top: 12px; left: 12px;
   background: var(--record); color: #fff; font-weight: 700;

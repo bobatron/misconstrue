@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, type Challenge, getChallenge, getRecording, uploadRecording } from '../api'
 import { unlockAudio } from '../components/audio'
 import { type PromptTiming, usePrompter } from '../components/usePrompter'
+import MirroredPlayer from '../components/MirroredPlayer'
 import { MAX_SECONDS, useRecorder } from '../components/useRecorder'
 
 type Retake = { message: string; missing: number[] }
@@ -223,7 +224,7 @@ export default function RecordPage() {
     case 'review':
       return (
         <main className="page">
-          <div className="stage" style={stageStyle}><video className="camera" src={stage.url} controls playsInline onLoadedMetadata={fitToVideo} /></div>
+          <div className="stage" style={stageStyle}><MirroredPlayer src={stage.url} onShape={setAspect} /></div>
           <p className="muted small">Happy with it?</p>
           <div className="button-row">
             <button className="secondary" onClick={() => setStage({ name: 'ready', retake: stage.retake })}>Retake</button>
