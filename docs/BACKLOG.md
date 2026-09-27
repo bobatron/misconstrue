@@ -33,7 +33,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | POL-1 | Tune the completeness check on real recordings | Polish | M | P2 | TOOL-1 |
 | POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
 | FEAT-1 | User 1 can see the finished video (private results link) | Feature | M | **P0** | — |
-| FEAT-2 | Mirrored playback: review (custom controls) and/or finished video | Feature | S | P1 | decision |
+| FEAT-2 | Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | P1 | — |
 | POL-3 | Better masked sentences (fewer word-list fallbacks) | Polish | M | P2 | — |
 | POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
 | POL-5 | Friendlier error & edge-case screens | Polish | S | P2 | — |
@@ -386,12 +386,15 @@ while one person tests both sides).
 **Done when:** User 1 can open their results link and watch the finished video as soon as it's
 ready; User 2's link never reveals the results link or the sentence before their reveal.
 
-### FEAT-2 · Mirrored playback  `S · P1` (needs a decision)
+### FEAT-2 · Mirrored playback  `S · P1`
 The live camera preview is mirrored (natural when looking at yourself). Browser video controls
 can't be flipped separately from the picture, so a mirrored *review* needs our own simple
 controls (play/pause, scrub, watch again). Also decide whether the *finished* video should be
 mirrored (flip it when rendering, so downloads and User 1's copy match). Note: in most video-call
 apps you see yourself mirrored, but the other person sees you un-mirrored.
+**Decided (27 Sep 2026): option (a).** Mirror only the review User 2 watches before submitting,
+using custom controls (play/pause, scrub, watch again) so the controls read normally. The
+finished video stays un-mirrored for both users.
 
 ## Polish (rest of the original Phase 4)
 
