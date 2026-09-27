@@ -19,7 +19,13 @@ class PipelineResult:
     output: Path | None = None
 
 
-def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Path) -> PipelineResult:
+def _critical_words(spans, phones) -> set[int]:
+    """Indices of the words the splice plan cuts from."""
+    return {phones[k].word_index for sp in spans for k in range(sp.s_start, sp.s_end)}
+
+
+def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool = False) -> PipelineResult:
+    """`force`: after too many retakes, render whatever we can instead of asking again."""
     try:
         norm = media.normalise(video, workdir)
     except media.MediaError as exc:
@@ -27,22 +33,28 @@ def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Pat
 
     heard = verify_read.transcribe(norm.wav16)
     log.info("heard: %s", " ".join(h.word for h in heard))
-    if not heard:
-        gate = verify_read.check(masked_text, heard, None, set())
+    target = phonetics.sentence_phones(phonetics.tokenize(target_text))
+
+    # Quick check on the transcript alone, using the dictionary plan to decide which words
+    # matter. Catches partial readings before the (slow, easily confused) aligner runs.
+    masked_phones = phonetics.sentence_phones(phonetics.tokenize(masked_text))
+    expected = plan_splice(target, masked_phones)
+    expected_critical = _critical_words(expected[0], masked_phones) if expected else set()
+    gate = verify_read.check(masked_text, heard, None, expected_critical)
+    if not gate.ok and (not force or not heard):
         return PipelineResult("needs_retake", gate.message, gate.missing)
 
     try:
         alignment = aligner.align(norm.wav16, masked_text)
     except aligner.AlignmentError as exc:
         log.warning("%s", exc)
-        return PipelineResult("needs_retake", "We couldn't follow that recording. Please read the sentence again.")
+        return PipelineResult("needs_retake", gate.message or "We couldn't follow that recording. Please read the sentence again.", gate.missing)
 
-    target = phonetics.sentence_phones(phonetics.tokenize(target_text))
     plan = plan_splice(target, alignment.phones, alignment.times)
-    critical = {alignment.phones[k].word_index for sp in plan[0] for k in range(sp.s_start, sp.s_end)} if plan else set()
+    critical = _critical_words(plan[0], alignment.phones) if plan else set()
 
     gate = verify_read.check(masked_text, heard, alignment, critical)
-    if not gate.ok:
+    if not gate.ok and not (force and plan):
         return PipelineResult("needs_retake", gate.message, gate.missing)
     if plan is None:
         return PipelineResult("failed", "Some sounds were missing from the recording.")
