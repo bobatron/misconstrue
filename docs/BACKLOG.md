@@ -11,7 +11,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | CONFIG-1 | ✅ Editable settings file (`.env`) | Tooling | S | Done | — |
 | TOOL-1 | ✅ Benchmark + intelligibility test harness | Tooling | M | Done | — |
 | CONFIG-2 | Tuning page: live settings + re-render a saved recording | Tooling | M | P1 | CONFIG-1, PERF-2 (for speed) |
-| PERF-1 | Mini pronunciation dictionary per recording | Performance | S | **P0** | TOOL-1 (to measure) |
+| PERF-1 | ✅ Mini pronunciation dictionary per recording | Performance | S | Done | TOOL-1 (to measure) |
 | PERF-2 | Reuse MFA's cache between runs | Performance | S | P1 | PERF-1 |
 | PERF-3 | Keep MFA loaded as a long-running worker | Performance | M | P2 | PERF-1 |
 | PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2) | Performance | M | P2 | TOOL-1 |
@@ -41,7 +41,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → PERF-1 → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
+**Suggested order:** ~~BUG-1~~ → ~~CONFIG-1~~ → ~~TOOL-1~~ → ~~PERF-1~~ → CONFIG-2 → QUAL-1 → QUAL-4 → SYL-1 → SYL-2 → SYL-3 → PERF-2 → the rest.
 
 ---
 
@@ -104,10 +104,10 @@ good takes. r26 scored 0%, worth a look.
 
 ## Performance
 
-Measured today: ≈ 48 s per video, of which **42 s is the aligner (MFA)**, mostly start-up
+Measured before PERF-1: ≈ 48 s per video, of which **42 s is the aligner (MFA)**, mostly start-up
 cost rather than actual aligning.
 
-### PERF-1 · Mini pronunciation dictionary per recording  `S · P0`
+### PERF-1 · Mini pronunciation dictionary per recording  `S · ✅ Done`
 MFA loads its full 200,000-word dictionary on every run, but a sentence uses about 25 words.
 **Do:**
 - Before aligning, write a small dictionary containing only the masked sentence's words,
@@ -115,6 +115,9 @@ MFA loads its full 200,000-word dictionary on every run, but a sentence uses abo
 - If a word is missing from the full dictionary, fall back to the full dictionary for that run.
 **Done when:** alignment ≈ 14 s (tested by hand: 42 s → 14 s), and the fixtures give identical
 or equal-quality results.
+
+**Result:** align 43.3 s → 13.9 s, total 48.4 s → 18.4 s per video; clarity identical on every
+fixture; retake check still 15/15. Saved as the new benchmark baseline.
 
 ### PERF-2 · Reuse MFA's cache between runs  `S · P1`
 MFA caches its set-up work, but we currently wipe it after each run (`--clean`).

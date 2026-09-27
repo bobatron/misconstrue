@@ -183,26 +183,26 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 
 ---
 
-## Why does it take about a minute?
+## How long does it take?
 
-I timed each step on one of your real recordings (7 seconds of video, 20 words):
+About **18 seconds** per video (averaged over 9 of your recordings with `make bench`):
 
-| Step | Time |
-|---|---|
-| Convert the upload (ffmpeg) | 0.8 s |
-| Load + run Whisper (the check) | 3.1 s |
-| **Align (MFA)** | **41.6 s** |
-| Plan the cuts | < 0.1 s |
-| Build the video | 1.7 s |
-| **Total** | **≈ 48 s** |
+| Step | Before PERF-1 | Now |
+|---|---|---|
+| Convert the upload (ffmpeg) | 0.8 s | 0.7 s |
+| Run Whisper (the check) | 2.5 s | 2.2 s |
+| **Align (MFA)** | **43.3 s** | **13.9 s** |
+| Plan the cuts | < 0.1 s | < 0.1 s |
+| Build the video | 1.6 s | 1.3 s |
+| **Total** | **48.4 s** | **18.4 s** |
 
-It's **not a hard limit**. Almost all of the wait is MFA, and most of MFA's time is spent
-getting ready each run, not aligning: it loads its entire 200,000-word dictionary for a
-sentence that uses about 25 words. Options, from easiest to biggest:
+The big win came from giving MFA a **mini dictionary** with only the sentence's words:
+it was spending most of its time loading all 200,000 words. Alignment is still most of the
+wait, and there are further options, from easiest to biggest:
 
 | Option | Effort | Expected total |
 |---|---|---|
-| **Give MFA a mini dictionary** with only the sentence's words. *Tested: alignment drops from 42 s to 14 s.* | Small | ~20 s |
+| ✅ **Mini dictionary** with only the sentence's words (done: 48 s → 18 s) | Small | 18 s |
 | Keep MFA's cache between runs. *Tested: a repeat run took 10 s.* Could be combined with the above. | Small | ~15 s |
 | Keep MFA loaded in memory as a long-running worker, instead of starting it fresh each time | Medium | ~5–8 s |
 | Swap MFA for an in-memory aligner (torchaudio + a wav2vec2 speech model) | Larger | ~3–5 s |

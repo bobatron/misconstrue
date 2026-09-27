@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from app import config
 from app.core.phonetics import Phone, strip_stress, tokenize
+
+log = logging.getLogger(__name__)
 
 SILENCE = {"", "sil", "sp", "spn", "<eps>"}
 
@@ -36,6 +40,36 @@ def _entries(tiers: dict, name: str) -> list[tuple[float, float, str]]:
     return [(float(s), float(e), str(label)) for s, e, label in entries]
 
 
+@lru_cache(maxsize=2)
+def _dictionary_lines(path: Path) -> dict[str, list[str]]:
+    """word -> its lines in the pronunciation dictionary, verbatim (all variants and probabilities)."""
+    lines: dict[str, list[str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        word = line.split("\t", 1)[0].lower()
+        if word:
+            lines.setdefault(word, []).append(line)
+    return lines
+
+
+def dictionary_for(words: list[str], folder: Path) -> str:
+    """A pronunciation dictionary containing only `words`.
+
+    MFA spends most of its time loading its full 200,000-word dictionary; a sentence needs
+    about 25 words. Falls back to the full dictionary if any word isn't in it.
+    """
+    path = config.PRONUNCIATION_DICT
+    if path is None or not path.exists():
+        return config.MFA_DICTIONARY
+    lines = _dictionary_lines(path)
+    missing = sorted({w for w in words if w not in lines})
+    if missing:
+        log.info("Not in the dictionary, aligning with the full one: %s", ", ".join(missing))
+        return config.MFA_DICTIONARY
+    mini = folder / "sentence.dict"
+    mini.write_text("\n".join(line for w in dict.fromkeys(words) for line in lines[w]) + "\n", encoding="utf-8")
+    return str(mini)
+
+
 def align(wav_16k: Path, text: str) -> Alignment:
     words = tokenize(text)
     with tempfile.TemporaryDirectory(prefix="mfa_") as tmp:
@@ -43,8 +77,9 @@ def align(wav_16k: Path, text: str) -> Alignment:
         corpus.mkdir()
         shutil.copy(wav_16k, corpus / "rec.wav")
         (corpus / "rec.lab").write_text(" ".join(words))
+        dictionary = dictionary_for(words, Path(tmp))
         cmd = [
-            _mfa(), "align", str(corpus), config.MFA_DICTIONARY, config.MFA_ACOUSTIC_MODEL, str(out),
+            _mfa(), "align", str(corpus), dictionary, config.MFA_ACOUSTIC_MODEL, str(out),
             "--output_format", "json", "--clean", "--single_speaker", "--quiet",
             "--temporary_directory", str(Path(tmp) / "mfa_tmp"),
         ]
