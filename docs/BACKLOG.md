@@ -17,7 +17,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | PERF-4a | Spike: in-memory aligner (torchaudio + wav2vec2): no longer needed for speed | Performance | M | P3 | TOOL-1 |
 | PERF-4b | Ship the in-memory aligner behind a setting | Performance | M | P3 | PERF-4a |
 | PERF-5 | ✅ Load Whisper at startup, not on first upload | Performance | S | Done | — |
-| PERF-6 | Faster retake check: smaller/faster Whisper model (2.2 s now) | Performance | S | Later | TOOL-1 |
+| PERF-6 | ✅ Faster retake check: smaller Whisper model (tested: keep small.en) | Performance | S | Done | TOOL-1 |
 | PERF-7 | Faster video build: stretching + encoding (2.0 s now) | Performance | M | Later | TOOL-1 |
 | QUAL-1 | ✅ Slow down the final sentence (time-stretch) | Quality | M | Done | TOOL-1 |
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
@@ -49,18 +49,26 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | HOST-9 | Choose a host, deploy with HTTPS & a domain | Hosting | M | P3 | HOST-1…8, HOST-10 |
 | HOST-10 | Lock down the tuning page (password or disabled) | Hosting | S | P3 | CONFIG-2 |
 
-**Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
-then publish):
+**Plan** (agreed 27 Sep 2026, evening: keep it simple, host for virtually free, money later):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → ~~FEAT-1~~ → ~~POL-5~~ → ~~FEAT-2~~ → ~~POL-3~~ → ~~POL-4~~ → HOST-1 → HOST-3 → HOST-4 →
-   HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
-2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
-   QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
-3. **Publish:** HOST-9
-4. **Optional / later:** REC-2, REC-3, PERF-4a/b, PERF-6, PERF-7
+1. **Phase A: Simplify** (in progress). Done: AI masking off by default (instant word-list
+   disguises: link creation 10–30 s → 0.06 s, no 5 GB model), one word at a time framed as a
+   "voice calibration", no tiny function words as carriers, fixed judge model for clarity
+   scores; PERF-6 tested (keep `small.en`). **Next:** you record 3–4 one-word takes (good and
+   bad), `make fixtures`, compare clarity with the baseline.
+2. **Phase B: Host for free.** Choose the host after Phase A with real numbers (favourite:
+   Hugging Face Spaces free CPU; fallbacks: Oracle Always Free VM, or your Mac + Cloudflare
+   tunnel). Then HOST-1 (Docker, no Ollama) → HOST-5 (auto-delete) → HOST-6 (rate limits) →
+   HOST-7 (prank/consent notice) → HOST-10 (tuning page off when hosted) → HOST-9 (deploy).
+3. **Phase C: Monetise lightly**, once you're happy with the app (watermark-free download,
+   tip jar, maybe ads).
+4. **Perfect the output**, as needed along the way: QUAL-5, SYL-1…3, QUAL-2/3, POL-1, POL-6.
+5. **Dropped / deferred** (not needed at this scale): HOST-3 job queue, HOST-4 object
+   storage, HOST-8 server-side LLM, PERF-4a/b alternative aligner, REC-2/3, PERF-7.
 
-Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~ ~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ ~~FEAT-2~~ ~~POL-3~~ ~~POL-4~~ · built, awaiting more
-real recordings: REC-1
+Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~
+~~HOST-2~~ ~~POL-2~~ ~~FEAT-1~~ ~~POL-5~~ ~~FEAT-2~~ ~~POL-3~~ ~~POL-4~~ ~~PERF-6~~ (tested, no change) ·
+REC-1 built
 
 ---
 
@@ -204,10 +212,14 @@ index. Small, but free.
 logged as "Speech models ready"), so the server answers immediately and the first upload after a
 restart saves ~0.8 s on its transcribe step (2.6 s → 1.8 s). Later uploads were never affected.
 
-### PERF-6 · Faster retake check  `S · Later`
+### PERF-6 · Faster retake check  `S · ✅ Done (no change)`
 Whisper `small.en` takes ~2.2 s per upload (and ~1.5 s per clarity score on /tune and in the
 benchmark). Try `base.en` / `tiny.en` or faster decoding settings; keep only if the benchmark's
 retake check stays all-correct.
+
+**Result:** `base.en` saved ~1 s but let 2 bad takes through (17/19); `tiny.en` saved ~1.3 s
+but rejected 4 good takes (15/19). Keeping `small.en`. Re-check once there are one-word
+fixtures. The clarity score now uses a fixed judge model (`small.en`) so it stays comparable.
 
 ### PERF-7 · Faster video build  `M · Later`
 Building the video takes ~2.0 s including the slow-down. Profile it: the per-piece stretching
@@ -431,6 +443,13 @@ worth a quick check once hosted.
 Long sentences sometimes fall back to plain word lists. Try smaller groups per phrase, a
 retry with different words, a better prompt, or a different local model; measure how often
 a fallback happens.
+
+**Update (27 Sep evening): partly rolled back.** Plain English: the AI was being asked to write a
+natural sentence around the words User 2 has to say, and it often left words out. POL-3 made
+it retry each word until it fitted: every sentence became natural, but each retry is another
+AI request, so creating a link took 10–30 s. Once the prompter showed words one at a time,
+nobody sees the sentence anyway, so the AI is now off by default and the retry machinery is
+gone. The cheap secrecy rules from POL-3 (word-family giveaways) stay.
 
 **Result** (`make mask-eval`, 20 sentences): fully natural **5/20 → 20/20**, phrase groups falling
 back to word lists **30% → 0%**. Three changes: (1) common function words ("the", "I", "is")
