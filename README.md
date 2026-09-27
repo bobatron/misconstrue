@@ -41,6 +41,8 @@ python scripts/cli.py run clip.mp4 --masked "<masked sentence>" --target "hello 
 ```
 
 ## How it works
+Full plain-English explanation: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)
+
 1. **Masking** — the target is turned into phonemes (MFA's ARPAbet dictionary, stress-aware).
    A dynamic program splits it into as few chunks as possible, each found inside some common
    "carrier" word that doesn't give the game away. A local LLM hides the carrier words in
