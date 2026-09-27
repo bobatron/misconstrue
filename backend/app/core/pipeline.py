@@ -137,7 +137,7 @@ def _run(
             log.warning("%s", exc)
             return PipelineResult(
                 "needs_retake",
-                gate.message or "We couldn't follow that recording. Please read the sentence again.",
+                gate.message or "We couldn't follow that recording. Please go through the words again.",
                 gate.missing,
             )
         _save_analysis(workdir, key, heard, alignment)

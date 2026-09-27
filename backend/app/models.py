@@ -36,6 +36,7 @@ class Recording(SQLModel, table=True):
     missing: str = ""  # comma-separated masked word indices the speaker missed
     input_path: str
     output_path: str = ""
+    prompt_timings: str = ""  # JSON from the prompter: when each prompt was shown and spoken
     created_at: datetime = Field(default_factory=now)
 
 
@@ -66,6 +67,20 @@ engine = create_engine(f"sqlite:///{config.DATA_DIR / 'misconstrue.db'}", connec
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """create_all() makes new tables but doesn't add new columns to existing ones: do that here."""
+    with engine.begin() as conn:
+        for table in SQLModel.metadata.sorted_tables:
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table.name})")}
+            for column in table.columns:
+                if column.name not in existing:
+                    ddl = column.type.compile(engine.dialect)
+                    default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+                    clause = f" NOT NULL DEFAULT {default!r}" if default is not None else ""
+                    conn.exec_driver_sql(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {ddl}{clause}")
 
 
 def session() -> Session:

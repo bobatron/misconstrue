@@ -35,6 +35,7 @@ router = APIRouter(prefix="/api/tune", dependencies=[Depends(local_only)])
 AFFECTS = {
     "masking": "New links",
     "check": "Checking uploads and re-renders",
+    "recording": "The record page (reload it)",
     "video": "Videos and re-renders",
     "limits": "New links and uploads",
     "system": "Needs a restart: change in .env",

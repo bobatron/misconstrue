@@ -32,6 +32,7 @@ RESTART_GROUPS = {"system"}
 GROUPS = {
     "masking": "Masking: how the disguise sentence is made",
     "check": "Retake check: how strict we are about reading the whole sentence",
+    "recording": "Recording: what User 2 sees while recording",
     "video": "Output video",
     "limits": "Limits",
     "system": "Models, paths & services (advanced)",
@@ -88,6 +89,17 @@ class Settings(BaseModel):
     MAX_RETAKES: int = setting(
         5, "check", "After this many attempts, make the best video we can instead of asking again.",
         ge=1, le=50)
+
+    # ── Recording ──────────────────────────────────────────────────────────────
+    WORDS_PER_PROMPT: int = setting(
+        3, "recording", "Words shown at a time while recording. 1 = one word at a time; 2-3 keeps short words "
+        "sounding natural ('the', not 'thee').", ge=1, le=8)
+    ADVANCE_SILENCE_MS: float = setting(
+        600, "recording", "How long a pause (ms) after speaking moves on to the next prompt. Longer = fewer "
+        "accidental skips mid-phrase, but slower.", ge=200, le=2000)
+    PROMPT_HINT_S: float = setting(
+        6, "recording", "If no speech is heard for this long (seconds), highlight the Next button so nobody gets "
+        "stuck (e.g. a quiet voice).", ge=2, le=30)
 
     # ── Output video ───────────────────────────────────────────────────────────
     PLAYBACK_SPEED: float = setting(

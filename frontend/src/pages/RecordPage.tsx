@@ -1,15 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { type Challenge, getChallenge, getRecording, uploadRecording } from '../api'
+import { type PromptTiming, usePrompter } from '../components/usePrompter'
 import { MAX_SECONDS, useRecorder } from '../components/useRecorder'
+
+type Retake = { message: string; missing: number[] }
 
 type Stage =
   | { name: 'loading' }
   | { name: 'missing'; message: string }
   | { name: 'intro' }
-  | { name: 'ready'; retake?: { message: string; missing: number[] } }
-  | { name: 'recording' }
-  | { name: 'review'; blob: Blob; url: string }
+  | { name: 'ready'; retake?: Retake }
+  | { name: 'recording'; retake?: Retake }
+  | { name: 'review'; blob: Blob; url: string; retake?: Retake }
   | { name: 'processing' }
   | { name: 'done'; videoUrl: string; target: string }
   | { name: 'failed'; message: string }
@@ -20,6 +23,23 @@ export default function RecordPage() {
   const [stage, setStage] = useState<Stage>({ name: 'loading' })
   const rec = useRecorder()
   const preview = useRef<HTMLVideoElement>(null)
+  const timings = useRef<PromptTiming[]>([])
+  const stopRecording = rec.stop
+  const onPromptsDone = useCallback(
+    (t: PromptTiming[]) => {
+      timings.current = t
+      stopRecording()
+    },
+    [stopRecording],
+  )
+  const prompter = usePrompter({
+    prompts: challenge?.prompts ?? [],
+    stream: rec.stream,
+    active: stage.name === 'recording',
+    silenceMs: challenge?.prompter.advance_silence_ms ?? 600,
+    hintAfterS: challenge?.prompter.hint_after_s ?? 6,
+    onFinish: onPromptsDone,
+  })
 
   useEffect(() => {
     getChallenge(slug)
@@ -37,14 +57,15 @@ export default function RecordPage() {
     }
   })
 
-  async function startRecording() {
-    setStage({ name: 'recording' })
+  async function startRecording(retake?: Retake) {
+    timings.current = []
+    setStage({ name: 'recording', retake })
     const blob = await rec.record()
-    setStage({ name: 'review', blob, url: URL.createObjectURL(blob) })
+    setStage({ name: 'review', blob, url: URL.createObjectURL(blob), retake })
   }
 
   /** Camera back on (no permission prompt the second time), then back to the record screen. */
-  async function backToRecording(retake?: { message: string; missing: number[] }) {
+  async function backToRecording(retake?: Retake) {
     if (await rec.start()) setStage({ name: 'ready', retake })
     else setStage({ name: 'intro' })
   }
@@ -54,7 +75,7 @@ export default function RecordPage() {
     URL.revokeObjectURL(url)
     setStage({ name: 'processing' })
     try {
-      const { recording_id } = await uploadRecording(slug, blob)
+      const { recording_id } = await uploadRecording(slug, blob, timings.current)
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500))
         const s = await getRecording(recording_id)
@@ -68,15 +89,9 @@ export default function RecordPage() {
     }
   }
 
-  const teleprompter = (missing: number[] = []) => (
-    <p className="teleprompter">
-      {challenge?.tokens.map((t, i) => (
-        <span key={i} className={missing.includes(i) ? 'missed' : undefined}>
-          {t}{' '}
-        </span>
-      ))}
-    </p>
-  )
+  /** Prompts containing words the check said were missed. */
+  const missedPrompts = (missing: number[] = []) =>
+    new Set((challenge?.prompts ?? []).flatMap((p, i) => (p.tokens.some((t) => missing.includes(t)) ? [i] : [])))
 
   switch (stage.name) {
     case 'loading':
@@ -96,7 +111,7 @@ export default function RecordPage() {
           <h1 className="logo">misconstrue</h1>
           <section className="card">
             <h2>A friend needs your voice</h2>
-            <p>Read one sentence out loud on camera. It takes about ten seconds.</p>
+            <p>Some words will pop up on screen, a few at a time. Just say them out loud. It takes about half a minute.</p>
             {rec.error && <p className="error">{rec.error}</p>}
             <button className="wide" onClick={async () => (await rec.start()) && setStage({ name: 'ready' })}>
               Turn on camera
@@ -108,22 +123,60 @@ export default function RecordPage() {
     case 'ready':
     case 'recording': {
       const recording = stage.name === 'recording'
-      const retake = stage.name === 'ready' ? stage.retake : undefined
+      const retake = stage.retake
+      const prompts = challenge?.prompts ?? []
+      const flagged = missedPrompts(retake?.missing)
+      const current = prompts[prompter.index]
       return (
         <main className="page">
-          {retake && <p className="notice">{retake.message}</p>}
+          {retake && !recording && (
+            <p className="notice">
+              {retake.message}
+              {flagged.size > 0 && ' Those words are marked when they come up.'}
+            </p>
+          )}
           <div className="stage">
             <video ref={preview} className="camera mirrored" autoPlay muted playsInline />
             {recording && <span className="rec-dot">● {MAX_SECONDS - rec.seconds}s</span>}
+            {recording && (
+              <div className="prompter" aria-live="polite">
+                {prompter.phase === 'countdown' && <p className="prompt-countdown">{prompter.countdown}</p>}
+                {prompter.phase === 'prompting' && current && (
+                  <>
+                    {flagged.has(prompter.index) && <span className="prompt-flag">say this one clearly</span>}
+                    <p className={`prompt-text ${prompter.speaking ? 'speaking' : ''}`}>{current.text}</p>
+                    {prompts[prompter.index + 1] && <p className="prompt-next">{prompts[prompter.index + 1].text}</p>}
+                  </>
+                )}
+                {prompter.phase === 'done' && <p className="prompt-text">✓</p>}
+                <div className="prompt-footer">
+                  <span className="level" title="Microphone level">
+                    <span style={{ width: `${Math.round(prompter.level * 100)}%` }} />
+                  </span>
+                  {prompter.phase === 'prompting' && <span>{prompter.index + 1} / {prompts.length}</span>}
+                </div>
+              </div>
+            )}
           </div>
-          <p className="muted small">{recording ? 'Read this out loud, clearly:' : 'When you press record, read this out loud:'}</p>
-          {teleprompter(retake?.missing)}
           {recording ? (
-            <button className="wide stop" onClick={rec.stop}>Stop</button>
+            <>
+              <p className="muted small center-text">
+                {prompter.hint ? "Say it out loud, or tap Next if you already have." : 'Say each one clearly, then pause. It moves on by itself.'}
+              </p>
+              <div className="button-row">
+                <button className="secondary" onClick={prompter.back} disabled={prompter.phase !== 'prompting' || prompter.index === 0}>← Back</button>
+                <button className={prompter.hint ? 'pulse' : 'secondary'} onClick={prompter.next} disabled={prompter.phase !== 'prompting'}>Next →</button>
+              </div>
+              <button className="wide stop" onClick={rec.stop}>Stop</button>
+            </>
           ) : (
-            <button className="wide record" onClick={startRecording}>
-              ● Record
-            </button>
+            <>
+              <p className="muted small">
+                When you press record, words appear on the video a few at a time. Say each group out loud, clearly,
+                then pause: it moves on by itself. ({prompts.length} to go)
+              </p>
+              <button className="wide record" onClick={() => startRecording(retake)}>● Record</button>
+            </>
           )}
         </main>
       )
@@ -135,7 +188,7 @@ export default function RecordPage() {
           <div className="stage"><video className="camera mirrored" src={stage.url} controls playsInline /></div>
           <p className="muted small">Happy with it?</p>
           <div className="button-row">
-            <button className="secondary" onClick={() => setStage({ name: 'ready' })}>Retake</button>
+            <button className="secondary" onClick={() => setStage({ name: 'ready', retake: stage.retake })}>Retake</button>
             <button onClick={() => submit(stage.blob, stage.url)}>Submit</button>
           </div>
         </main>

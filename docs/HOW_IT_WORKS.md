@@ -115,6 +115,26 @@ ollama list                 # models you've downloaded
 
 ---
 
+## Recording: the prompter
+
+User 2 doesn't see the masked sentence as a paragraph. When they press Record there's a short
+3-2-1 countdown (the app listens to the room's background noise meanwhile), then the words
+appear **over the video a few at a time** (3 by default, `WORDS_PER_PROMPT`). When the reader
+has said them and pauses (`ADVANCE_SILENCE_MS`, 0.6 s), the next group appears; after the last
+one recording stops by itself.
+
+- Phrases are kept together, and a lone short word is joined to a neighbour: words like "the"
+  or "a" sound different when said on their own ("thee", "ay"), and the cutting needs the
+  natural versions.
+- Speech is detected from loudness in the browser: nothing is sent anywhere while recording.
+- If nothing is heard for 6 s the Next button pulses. Space / → skip ahead, ← goes back.
+- If the check after upload asks for a retake, the groups containing missed words are marked
+  "say this one clearly" when they come up.
+
+Code: `frontend/src/components/usePrompter.ts`, `voiceActivity.ts`, `backend/app/core/prompts.py`
+
+---
+
 ## Step 2: The completeness check ("please read it again")
 
 Code: `backend/app/core/verify_read.py`

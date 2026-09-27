@@ -115,7 +115,7 @@ def _subsequence_hits(word: tuple[str, ...], heard: list[str]) -> int:
 
 def _message(words: list[str]) -> str:
     quoted = ", ".join(f"“{w}”" for w in words[:4])
-    return f"We didn't quite catch {quoted}. Please read the whole sentence again, clearly and at a normal pace."
+    return f"We didn't quite catch {quoted}. Please go through the words again, saying each one clearly."
 
 
 def check(
@@ -128,7 +128,7 @@ def check(
     masked = phonetics.tokenize(masked_text)
     heard_text = " ".join(h.word for h in heard)
     if not heard:
-        return GateResult(False, "We couldn't hear any speech. Check your microphone and read the sentence out loud.",
+        return GateResult(False, "We couldn't hear any speech. Check your microphone and say the words out loud.",
                           list(range(len(masked))), heard_text)
 
     match = _match_words(masked, heard)

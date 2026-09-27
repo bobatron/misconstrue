@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlmodel import func, select
 
 from app import config
 from app.core import masker, phonetics, pipeline
+from app.core.prompts import split_prompts
 from app.models import Challenge, Recording, session, work_dir
 from app.worker import worker
 
@@ -64,11 +65,20 @@ def create_challenge(body: CreateChallenge) -> dict:
 def get_challenge(slug: str) -> dict:
     ch = _challenge(slug)
     # Never send the target text here: the reader mustn't see it before the reveal.
-    return {"slug": ch.slug, "masked_text": ch.masked_text, "tokens": ch.masked_text.split()}
+    return {
+        "slug": ch.slug,
+        "masked_text": ch.masked_text,
+        "tokens": ch.masked_text.split(),
+        "prompts": split_prompts(ch.masked_text, config.WORDS_PER_PROMPT),
+        "prompter": {
+            "advance_silence_ms": config.ADVANCE_SILENCE_MS,
+            "hint_after_s": config.PROMPT_HINT_S,
+        },
+    }
 
 
 @router.post("/challenges/{slug}/recordings")
-async def upload_recording(slug: str, video: UploadFile) -> dict:
+async def upload_recording(slug: str, video: UploadFile, prompt_timings: str = Form("")) -> dict:
     ch = _challenge(slug)
     suffix = Path(video.filename or "").suffix.lower()
     if suffix not in UPLOAD_SUFFIXES:
@@ -100,6 +110,7 @@ async def upload_recording(slug: str, video: UploadFile) -> dict:
             s.commit()
             raise HTTPException(413, "That recording is too big")
         rec.input_path = str(dest)
+        rec.prompt_timings = prompt_timings[:20000]
         s.add(rec)
         s.commit()
 

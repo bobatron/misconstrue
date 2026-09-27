@@ -1,4 +1,12 @@
-export type Challenge = { slug: string; masked_text: string; tokens: string[] }
+import type { Prompt, PromptTiming } from './components/usePrompter'
+
+export type Challenge = {
+  slug: string
+  masked_text: string
+  tokens: string[]
+  prompts: Prompt[]
+  prompter: { advance_silence_ms: number; hint_after_s: number }
+}
 
 export type RecordingStatus =
   | { status: 'uploaded' | 'processing' | 'failed'; message: string }
@@ -24,10 +32,11 @@ export const createChallenge = (text: string) =>
 
 export const getChallenge = (slug: string) => request<Challenge>(`/api/challenges/${slug}`)
 
-export function uploadRecording(slug: string, video: Blob) {
+export function uploadRecording(slug: string, video: Blob, timings: PromptTiming[]) {
   const ext = video.type.includes('mp4') ? 'mp4' : 'webm'
   const form = new FormData()
   form.append('video', video, `recording.${ext}`)
+  form.append('prompt_timings', JSON.stringify(timings))
   return request<{ recording_id: number }>(`/api/challenges/${slug}/recordings`, { method: 'POST', body: form })
 }
 

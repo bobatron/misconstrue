@@ -21,7 +21,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | QUAL-2 | Short pauses between words | Quality | S | P1 | TOOL-1 |
 | QUAL-3 | Prefer longer, clearer copies of each sound | Quality | S | P1 | TOOL-1 |
 | QUAL-4 | Ask the reader to speak slowly and clearly (folded into REC-1) | Quality | S | P1 | — |
-| REC-1 | Prompter: show a few words at a time over the video, advance when they've been said | Recording | M | **P0** | — |
+| REC-1 | 🟡 Prompter: show a few words at a time over the video, advance when they've been said: built, needs your recordings | Recording | M | **P0** | — |
 | REC-2 | Live word check: confirm each prompt was said correctly, repeat it straight away if not | Recording | L | P2 | REC-1 |
 | REC-3 | Re-record only the missed words, not the whole take | Recording | M | P2 | REC-1 |
 | SYL-1 | Syllable-aware cutting | Quality | M | P1 | TOOL-1 |
@@ -224,7 +224,7 @@ Design constraint: short words read on their own change sound ("the" → "thee",
 losing the weak "uh" vowels the cutting relies on. So prompts are **short phrases of 2–3
 words** by default, not single words.
 
-### REC-1 · Prompter: a few words at a time  `M · P0`
+### REC-1 · Prompter: a few words at a time  `M · 🟡 Built, needs your recordings`
 **Do:**
 - Split the masked sentence into prompts of `WORDS_PER_PROMPT` words (setting, default 3;
   1 = one word at a time), keeping the LLM's phrases together where possible.
@@ -245,6 +245,16 @@ new recordings pass the check at least as often as before; the benchmark (with n
 recorded this way) shows clarity no worse than paragraph reading, ideally better.
 **Risk:** if speech detection is flaky in noisy rooms, lean on the manual fallback and tune
 the silence threshold (setting).
+
+**Status:** built. Prompts from `core/prompts.py` (phrases kept together, even splits, lone
+words joined within a sentence); settings WORDS_PER_PROMPT 3, ADVANCE_SILENCE_MS 600,
+PROMPT_HINT_S 6 (group "Recording" on /tune). Browser voice-activity detection calibrates to
+the room during a 1.5 s countdown. **Changed from the plan:** no auto-skip when nothing is
+heard. The Next button pulses instead, since skipping guarantees a missed word. Timings are
+uploaded and stored (`recording.prompt_timings`). Tested in the browser with a simulated voice
+(tone bursts): auto-advance through all prompts, auto-stop, timings, retake markers, hint,
+keyboard, Back/Next. **Next:** record some real takes (good and deliberately bad), import them
+as fixtures and compare clarity with the paragraph-read baseline.
 
 ### REC-2 · Live word check  `L · P2`
 Confirm *which* words were said as the reader goes, and repeat a prompt immediately if it's
