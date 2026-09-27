@@ -32,6 +32,8 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | SYL-3 | "Secrecy level" setting: allow word-part carriers ("origin" + "lee") | Quality | M | P1 | SYL-2 |
 | POL-1 | Tune the completeness check on real recordings | Polish | M | P2 | TOOL-1 |
 | POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
+| FEAT-1 | User 1 can see the finished video (private results link) | Feature | M | **P0** | — |
+| FEAT-2 | Mirrored playback: review (custom controls) and/or finished video | Feature | S | P1 | decision |
 | POL-3 | Better masked sentences (fewer word-list fallbacks) | Polish | M | P2 | — |
 | POL-4 | Carrier word clean-up (names like "Boston", odd words) | Polish | S | P2 | — |
 | POL-5 | Friendlier error & edge-case screens | Polish | S | P2 | — |
@@ -50,7 +52,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 **Suggested order** (agreed 27 Sep 2026: finish the main tasks first, then perfect the output,
 then publish):
 
-1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → POL-5 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
+1. **Main tasks:** ~~PERF-5~~ → ~~HOST-2~~ → ~~POL-2~~ → FEAT-1 → POL-5 → FEAT-2 → POL-3 → POL-4 → HOST-1 → HOST-3 → HOST-4 →
    HOST-5 → HOST-6 → HOST-7 → HOST-8 → HOST-10
 2. **Perfect the output (last phase before publishing):** QUAL-5 → SYL-1 → SYL-2 → SYL-3 →
    QUAL-2 → QUAL-3 → POL-1 → POL-6, with listening tests on your recordings throughout
@@ -367,6 +369,29 @@ Could later be a toggle on User 1's create page ("sneakier" ↔ "clearer").
 gain at Medium/Low.
 
 ---
+
+## Features
+
+### FEAT-1 · User 1 can see the finished video  `M · P0`
+Today only User 2 sees the result; the person who wrote the sentence never does (easy to miss
+while one person tests both sides).
+**Do:**
+- When User 1 creates a link, also give them a private **results link** (a separate secret
+  code, never shown to User 2) that lists attempts for that link and shows the finished
+  video(s), with download. Poll or refresh until one arrives.
+- Show it on the create page ("Keep this link to see the result") with a copy button.
+- Optional later: notify User 1 when a video is ready (would need an email or push setup).
+- Privacy: User 2 should be told on the record page that the person who sent the link will
+  see the video (fold into HOST-7's notice, which becomes needed earlier because of this).
+**Done when:** User 1 can open their results link and watch the finished video as soon as it's
+ready; User 2's link never reveals the results link or the sentence before their reveal.
+
+### FEAT-2 · Mirrored playback  `S · P1` (needs a decision)
+The live camera preview is mirrored (natural when looking at yourself). Browser video controls
+can't be flipped separately from the picture, so a mirrored *review* needs our own simple
+controls (play/pause, scrub, watch again). Also decide whether the *finished* video should be
+mirrored (flip it when rendering, so downloads and User 1's copy match). Note: in most video-call
+apps you see yourself mirrored, but the other person sees you un-mirrored.
 
 ## Polish (rest of the original Phase 4)
 
