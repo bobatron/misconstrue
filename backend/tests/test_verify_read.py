@@ -68,3 +68,13 @@ def test_word_placed_where_it_was_not_said_is_rejected():
     alignment = _alignment([("the", 0.0, 0.3), ("happy", 0.3, 0.7), ("robin", 1.04, 1.40)])
     res = check("The happy robin", heard, alignment, {2})
     assert not res.ok and res.missing == [2]
+
+
+def test_vowel_mishearing_of_a_word_counts_as_said():
+    # One word at a time, Whisper heard "belly" as "ballet": same consonants (B-L).
+    assert check("anyone belly", _heard("anyone ballet"), None, {1}).ok
+
+
+def test_different_consonants_still_count_as_missing():
+    res = check("anyone belly", _heard("anyone sunny"), None, {1})
+    assert not res.ok and res.missing == [1]

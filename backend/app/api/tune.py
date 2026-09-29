@@ -210,12 +210,13 @@ def _run_render(render_id: int) -> None:
         s.add(render)
         s.commit()
         inp, workdir, masked, target = Path(rec.input_path), work_dir(rec), ch.masked_text, ch.target_text
+        timings = rec.prompt_timings
 
     out = inp.parent / "renders" / f"{render_id}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
     clarity = None
     try:
-        res = pipeline.run(inp, masked, target, workdir, out)
+        res = pipeline.run(inp, masked, target, workdir, out, prompt_timings=timings)
         if res.output:
             clarity = scoring.clarity(res.output, target)
     except Exception:

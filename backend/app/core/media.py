@@ -44,6 +44,15 @@ def stream_types(path: Path) -> set[str]:
     return {s.get("codec_type") for s in streams}
 
 
+def duration(path: Path) -> float:
+    """Length of a media file in seconds."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        capture_output=True, text=True,
+    )
+    return float(out.stdout.strip() or 0)
+
+
 def normalise(src: Path, workdir: Path) -> Normalised:
     workdir.mkdir(parents=True, exist_ok=True)
     kinds = stream_types(src)

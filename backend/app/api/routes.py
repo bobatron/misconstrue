@@ -127,11 +127,12 @@ def _process(recording_id: int, challenge_id: int, force: bool) -> None:
         s.add(rec)
         s.commit()
         inp, masked, target = Path(rec.input_path), ch.masked_text, ch.target_text
+        timings = rec.prompt_timings
         workdir = work_dir(rec)  # kept: the tuning page re-renders from it
 
     out = inp.parent / f"{recording_id}-output.mp4"
     try:
-        res = pipeline.run(inp, masked, target, workdir, out, force=force)
+        res = pipeline.run(inp, masked, target, workdir, out, force=force, prompt_timings=timings)
     except Exception:
         log.exception("processing recording %s failed", recording_id)
         res = pipeline.PipelineResult("failed", "Something went wrong on our side. Please try recording again.")

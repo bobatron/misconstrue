@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app import config
-from app.core import aligner, editor, media, phonetics, verify_read
+from app.core import aligner, editor, media, phonetics, segments, verify_read
 from app.core.splice import plan_splice
 
 log = logging.getLogger(__name__)
@@ -43,11 +43,17 @@ def _critical_words(spans, phones) -> set[int]:
     return {phones[k].word_index for sp in spans for k in range(sp.s_start, sp.s_end)}
 
 
-def run(video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool = False) -> PipelineResult:
-    """`force`: after too many retakes, render whatever we can instead of asking again."""
+def run(
+    video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool = False,
+    prompt_timings: str | list | None = None,
+) -> PipelineResult:
+    """`force`: after too many retakes, render whatever we can instead of asking again.
+    `prompt_timings`: the prompter's record of when each word was on screen (JSON or list). With
+    one word per prompt, each word is checked and aligned in its own clip (see segments.py)."""
     timer = _Timer()
     start = time.perf_counter()
-    result = _run(video, masked_text, target_text, workdir, out, force, timer)
+    timings = json.loads(prompt_timings) if isinstance(prompt_timings, str) and prompt_timings else prompt_timings or []
+    result = _run(video, masked_text, target_text, workdir, out, force, timer, timings)
     result.timings = {**timer.steps, "total": round(time.perf_counter() - start, 3)}
     log.info("%s in %.1fs: %s", result.status, result.timings["total"],
              ", ".join(f"{k} {v:.1f}s" for k, v in timer.steps.items()))
@@ -65,9 +71,9 @@ ANALYSIS_SETTINGS = (
 )
 
 
-def _analysis_key(video: Path, masked_text: str) -> str:
+def _analysis_key(video: Path, masked_text: str, timings: list) -> str:
     stat = video.stat()
-    parts = [str(video.resolve()), str(stat.st_size), str(stat.st_mtime_ns), masked_text]
+    parts = [str(video.resolve()), str(stat.st_size), str(stat.st_mtime_ns), masked_text, json.dumps(timings)]
     parts += [str(getattr(config, name)) for name in ANALYSIS_SETTINGS]
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
 
@@ -97,9 +103,10 @@ def _save_analysis(workdir: Path, key: str, heard: list, alignment: aligner.Alig
 
 
 def _run(
-    video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool, timer: _Timer
+    video: Path, masked_text: str, target_text: str, workdir: Path, out: Path, force: bool, timer: _Timer,
+    timings: list,
 ) -> PipelineResult:
-    key = _analysis_key(video, masked_text)
+    key = _analysis_key(video, masked_text, timings)
     cached = _load_analysis(workdir, key)
     alignment: aligner.Alignment | None = None
     if cached:
@@ -120,9 +127,17 @@ def _run(
             else:
                 message = "That recording couldn't be opened. Please record it again."
             return PipelineResult("needs_retake", message)
-        with timer("transcribe"):
-            heard = verify_read.transcribe(norm.wav16)
-        _save_analysis(workdir, key, heard, None)
+        words = phonetics.tokenize(masked_text)
+        wins = segments.windows(timings, len(words), media.duration(norm.wav16)) if timings else None
+        if wins:
+            # One word at a time: take out the long pauses, then transcribe and align once.
+            heard, alignment, spent = segments.analyse(norm.wav16, masked_text, timings, wins)
+            timer.steps.update({k: round(v, 3) for k, v in spent.items()})
+            _save_analysis(workdir, key, heard, alignment)
+        else:
+            with timer("transcribe"):
+                heard = verify_read.transcribe(norm.wav16)
+            _save_analysis(workdir, key, heard, None)
     log.info("heard: %s", " ".join(h.word for h in heard))
     target = phonetics.sentence_phones(phonetics.tokenize(target_text))
 

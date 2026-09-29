@@ -59,15 +59,27 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
    mostly pauses, squashing every word into the first seconds; the aligner now always uses the
    wide search (beam 100). r52/r53 now 80% / 86% clarity; r22/r23 (complete readings with small
    slips, wrongly rejected by the same problem) relabelled good; retake check right on all 21
-   labelled recordings. **Next:** a couple more one-word takes, including deliberately bad ones.
+   labelled recordings.
+   **Fixed (29 Sep, family testing):** good one-word takes kept being rejected: long, gappy takes
+   (30-40 s, mostly pauses) broke both the aligner and Whisper's word timings. Now the long
+   pauses are cut out first using the prompter's timings (`core/segments.py`): the stretch around
+   each word is joined into one compact clip, transcribed and aligned once, and times are mapped
+   back to the recording. Also: a word whose consonants match exactly counts as said ("belly"
+   heard as "ballet"). Of 18 one-word takes, all but one now pass (was 9 rejected); retake check
+   right on all 36 labelled recordings; one-word clarity mostly 70-100%.
+   **Still missing:** deliberately bad one-word takes (skip or mumble a word) to confirm those
+   are still caught; all 7 "bad" fixtures are paragraph reads.
 2. **Phase B: Host for free.** Choose the host after Phase A with real numbers (favourite:
    Hugging Face Spaces free CPU; fallbacks: Oracle Always Free VM, or your Mac + Cloudflare
    tunnel). Then HOST-1 (Docker, no Ollama) → HOST-5 (auto-delete) → HOST-6 (rate limits) →
    HOST-7 (prank/consent notice) → HOST-10 (tuning page off when hosted) → HOST-9 (deploy).
 3. **Phase C: Monetise lightly**, once you're happy with the app (watermark-free download,
    tip jar, maybe ads).
-4. **Perfect the output**, as needed along the way: QUAL-5, SYL-1…3, QUAL-2/3, POL-1, POL-6.
-5. **Dropped / deferred** (not needed at this scale): HOST-3 job queue, HOST-4 object
+4. **FEAT-3: music + effects "party mode"** (your idea, 29 Sep): words land on the beat of a
+   backing track, video effects (zoom punch, wobble, colour, karaoke captions) timed to it.
+   Planned before hosting.
+5. **Perfect the output**, as needed along the way: QUAL-5, SYL-1…3, QUAL-2/3, POL-1, POL-6.
+6. **Dropped / deferred** (not needed at this scale): HOST-3 job queue, HOST-4 object
    storage, HOST-8 server-side LLM, PERF-4a/b alternative aligner, REC-2/3, PERF-7.
 
 Done so far: ~~BUG-1~~ ~~CONFIG-1~~ ~~TOOL-1~~ ~~PERF-1~~ ~~CONFIG-2~~ ~~QUAL-1~~ ~~PERF-5~~ ~~PERF-3~~

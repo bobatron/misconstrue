@@ -75,7 +75,7 @@ def cmd_import(args: argparse.Namespace) -> None:
     FIXTURES.mkdir(parents=True, exist_ok=True)
     for rid in _parse_ids(args.ids, db):
         row = db.execute(
-            "select r.status, r.input_path, r.challenge_id, c.masked_text, c.target_text, "
+            "select r.status, r.input_path, r.challenge_id, c.masked_text, c.target_text, r.prompt_timings, "
             "(select count(*) from recording r2 where r2.challenge_id = r.challenge_id and r2.id <= r.id) "
             "from recording r join challenge c on c.id = r.challenge_id where r.id = ?",
             (rid,),
@@ -83,7 +83,7 @@ def cmd_import(args: argparse.Namespace) -> None:
         if not row:
             print(f"  r{rid}: no such recording, skipped")
             continue
-        status, input_path, _, masked, target, attempt = row
+        status, input_path, _, masked, target, prompt_timings, attempt = row
         src = Path(input_path)
         if not src.exists() or src.stat().st_size == 0:
             print(f"  r{rid}: video file missing or empty, skipped")
@@ -103,6 +103,7 @@ def cmd_import(args: argparse.Namespace) -> None:
             "video": dest.name,
             "masked_text": masked,
             "target_text": target,
+            "prompt_timings": prompt_timings or "",
             "expected": expected,
             "note": f"attempt {attempt}" + (", rendered after hitting the retake cap: label me" if forced else ""),
         })
@@ -144,10 +145,12 @@ def _run_one(fx: dict, out_dir: Path, reuse_analysis: bool) -> dict:
     if reuse_analysis:
         work = ANALYSIS_CACHE / fx["name"]
         work.mkdir(parents=True, exist_ok=True)
-        res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], work, out)
+        res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], work, out,
+                           prompt_timings=fx.get("prompt_timings"))
     else:
         with tempfile.TemporaryDirectory(prefix="bench_") as tmp:
-            res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], Path(tmp), out)
+            res = pipeline.run(FIXTURES / fx["video"], fx["masked_text"], fx["target_text"], Path(tmp), out,
+                               prompt_timings=fx.get("prompt_timings"))
     got = "good" if res.status == "done" else "bad" if res.status == "needs_retake" else res.status
     row = {
         "name": fx["name"],

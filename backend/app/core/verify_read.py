@@ -97,11 +97,20 @@ def _match_words(masked: list[str], heard: list[Heard]) -> dict[int, tuple[float
             if lo >= hi:
                 continue
             heard_phones = [p for key in hk[lo:hi] for p in key]
+            heard_consonants = [_consonants(key) for key in hk[lo:hi]]
             for i in range(a0, a1):
                 found = _subsequence_hits(mk[i], heard_phones)
-                if found / max(1, len(mk[i])) >= config.FUZZY_MATCH_RATIO or (len(mk[i]) >= 3 and len(mk[i]) - found <= 1):
+                same_consonants = len(_consonants(mk[i])) >= 2 and _consonants(mk[i]) in heard_consonants
+                if (found / max(1, len(mk[i])) >= config.FUZZY_MATCH_RATIO or (len(mk[i]) >= 3 and len(mk[i]) - found <= 1)
+                        or same_consonants):
                     match[i] = (heard[lo].start, heard[hi - 1].end)
     return match
+
+
+def _consonants(phones: tuple[str, ...]) -> tuple[str, ...]:
+    """A word's consonant sounds. Whisper most often mishears vowels on a word said on its own
+    ("belly" -> "ballet", both B-L); a wrong or skipped word almost always differs in consonants."""
+    return tuple(p for p in phones if not phonetics.is_vowel(p))
 
 
 def _subsequence_hits(word: tuple[str, ...], heard: list[str]) -> int:
