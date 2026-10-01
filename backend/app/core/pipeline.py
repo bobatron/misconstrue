@@ -23,6 +23,7 @@ class PipelineResult:
     missing: list[int] = field(default_factory=list)
     output: Path | None = None
     party_output: Path | None = None  # the party-mode version (music + words on the beat)
+    party_words: list = field(default_factory=list)  # (word, start_s, end_s) where each word landed in it
     timings: dict[str, float] = field(default_factory=dict)  # seconds per step
 
 
@@ -177,14 +178,16 @@ def _run(
     with timer("render"):
         source_frames = media.read_frames(norm.video)  # shared by the plain and party renders
         editor.render(plan[0], alignment, norm, out, workdir, frames=source_frames)
-    party_out = None
+    party_out, party_words = None, []
     if config.PARTY_MODE:
         party_out = out.with_name(f"{out.stem}-party{out.suffix}")
         try:
+            words = phonetics.tokenize(target_text)
             with timer("party"):
-                editor.render_party(plan[0], target, phonetics.tokenize(target_text), alignment, norm, party_out,
-                                    workdir, source_frames=source_frames)
+                info = editor.render_party(plan[0], target, words, alignment, norm, party_out,
+                                           workdir, source_frames=source_frames)
+            party_words = [(words[sl.word_index], sl.start_s, sl.end_s) for sl in info.slots]
         except Exception:  # the plain video is what matters; never lose it to a party-mode problem
             log.exception("party-mode render failed")
             party_out = None
-    return PipelineResult("done", output=out, party_output=party_out)
+    return PipelineResult("done", output=out, party_output=party_out, party_words=party_words)

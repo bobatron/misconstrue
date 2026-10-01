@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 
 from app import config
-from app.core import pipeline, scoring
+from app.core import cadence, pipeline, scoring
 from app.models import Challenge, Recording, Render, session, work_dir
 from app.worker import worker
 
@@ -150,6 +150,7 @@ def _render_json(r: Render) -> dict:
         "clarity": r.clarity,
         "sounds": r.sounds,
         "heard": r.heard,
+        "cadence": json.loads(r.cadence_json or "{}"),
         "video_url": f"/api/tune/renders/{r.id}/video" if r.status == "done" else None,
         "party_video_url": f"/api/tune/renders/{r.id}/video?version=party"
         if r.status == "done" and r.party_output_path and Path(r.party_output_path).exists() else None,
@@ -219,15 +220,24 @@ def _run_render(render_id: int) -> None:
         s.add(render)
         s.commit()
         inp, workdir, masked, target = Path(rec.input_path), work_dir(rec), ch.masked_text, ch.target_text
-        timings = rec.prompt_timings
+        timings, slug = rec.prompt_timings, ch.slug
 
     out = inp.parent / "renders" / f"{render_id}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    clarity = None
+    clarity, rhythm = None, {}
     try:
         res = pipeline.run(inp, masked, target, workdir, out, prompt_timings=timings)
         if res.output:
             clarity = scoring.clarity(res.output, target)
+            ref = reference_path(slug)
+            if ref:
+                try:
+                    ref_times = cadence.word_times(ref, target)
+                    rhythm["plain"] = cadence.compare(ref_times, cadence.word_times(res.output, target))
+                    if res.party_words:
+                        rhythm["party"] = cadence.compare(ref_times, res.party_words)
+                except Exception:
+                    log.exception("couldn't measure cadence for render %s", render_id)
     except Exception:
         log.exception("re-render %s failed", render_id)
         res = pipeline.PipelineResult("failed", "Something went wrong: see the API log.")
@@ -241,6 +251,7 @@ def _run_render(render_id: int) -> None:
         render.party_output_path = str(res.party_output or "")
         if clarity:
             render.clarity, render.sounds, render.heard = clarity.score, clarity.sounds, clarity.heard
+        render.cadence_json = json.dumps(rhythm)
         s.add(render)
         s.commit()
 

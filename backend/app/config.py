@@ -114,6 +114,13 @@ class Settings(BaseModel):
     MIN_PIECE_MS: float = setting(
         300, "video", "After slowing down, sound pieces shorter than this (ms) are stretched further, up to 2x, so "
         "very short sounds are easier to hear. 0 = off.", ge=0, le=600)
+    TIGHTEN_PIECES: bool = setting(
+        True, "video", "Trim silence at the edges of cut pieces and shorten long silences inside them.")
+    MAX_GAP_IN_WORD_MS: float = setting(
+        70, "video", "Silences inside a cut piece longer than this (ms) are shortened, so rebuilt words have "
+        "no audible gaps (words read on their own end in pauses, and t/k/p hold a silence).", ge=20, le=500)
+    KEEP_GAP_IN_WORD_MS: float = setting(
+        50, "video", "How much of a long silence to keep (ms): about a natural t/k/p.", ge=0, le=200)
     CROSSFADE_MS: float = setting(
         8, "video", "Overlap between stitched sound pieces (ms). Longer = smoother but blurrier.", ge=0, le=50)
     SNAP_WINDOW_MS: float = setting(

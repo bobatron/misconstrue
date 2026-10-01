@@ -30,6 +30,14 @@ function RenderCard({ r, onDelete }: { r: Render; onDelete: () => void }) {
         </p>
       )}
       {r.heard && <p className="muted small">heard: “{r.heard}”</p>}
+      {(['party', 'plain'] as const).map((v) => {
+        const c = r.cadence?.[v]
+        return c ? (
+          <p key={v} className="small cadence" title="Compared with your reference voice">
+            Rhythm ({v}): length <b>×{c.length_ratio}</b> · gaps <b>{c.out_gap_ms} ms</b> (yours {c.ref_gap_ms}) · word starts off by <b>{c.onset_error_ms} ms</b>
+          </p>
+        ) : null
+      })}
       {r.status === 'needs_retake' && <p className="small">Retake check would reject this take.</p>}
       <div className="chips">
         {settings.length ? settings.map(([k, v]) => <span key={k} className="chip">{k}={v}</span>) : <span className="chip">all defaults</span>}

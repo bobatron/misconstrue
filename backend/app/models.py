@@ -62,6 +62,7 @@ class Render(SQLModel, table=True):
     heard: str = ""
     output_path: str = ""
     party_output_path: str = ""
+    cadence_json: str = "{}"  # rhythm vs the link's reference voice, if it has one
     created_at: datetime = Field(default_factory=now)
 
 

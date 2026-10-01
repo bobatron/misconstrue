@@ -29,6 +29,8 @@ export type TuneRecording = {
   has_reference: boolean
 }
 
+export type Cadence = { length_ratio: number; ref_gap_ms: number; out_gap_ms: number; onset_error_ms: number }
+
 export type Render = {
   id: number
   recording_id: number
@@ -39,6 +41,7 @@ export type Render = {
   clarity: number | null
   sounds: number | null
   heard: string
+  cadence: Partial<Record<'plain' | 'party', Cadence>>
   video_url: string | null
   party_video_url: string | null
   created_at: string

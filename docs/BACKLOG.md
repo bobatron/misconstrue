@@ -454,6 +454,13 @@ beat, off-beat hats, claps on 2 and 4, pumping bass and chords).
   party with a switch to plain; both downloadable; party settings on /tune.
 **Done when:** words start exactly on beats (tests), A/V in sync with effects on, processing under
 ~10 s, and it sounds/looks fun to you and your brothers. Clarity stays scored on the plain video.
+**Update (1 Oct):** words had audible gaps between their syllables: carrier words read on their
+own end in pauses, and a final t/k/p holds a long silence, which the aligner counts as part of the
+last sound, so pieces carried 100-340 ms of silence into rebuilt words. Pieces are now
+"tightened": quiet edges trimmed and long silences shortened to ~50 ms by splitting the piece
+(video stays in sync); soft sounds (h, f, th, v) are never trimmed. Clarity overall unchanged
+(within noise). **Cadence** is now measured against a reference voice (recorded per link on
+/tune): first two references show the party version close to your rhythm (length ×0.9–1.08).
 **Status:** built. Both versions are made per upload (~11.5 s total, party ~3.3 s); reveal and
 results pages open on the party version with a Party/Plain switch and matching download; /tune
 shows both for re-renders and has the party settings (tempo, speech speed, music volume,

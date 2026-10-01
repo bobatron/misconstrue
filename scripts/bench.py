@@ -33,7 +33,7 @@ from _env import require_project_python  # noqa: E402
 require_project_python()
 
 from app import config  # noqa: E402
-from app.core import pipeline, scoring  # noqa: E402
+from app.core import cadence, pipeline, scoring  # noqa: E402
 
 FIXTURES = config.ROOT / "backend" / "tests" / "fixtures"
 MANIFEST = FIXTURES / "manifest.json"
@@ -75,7 +75,7 @@ def cmd_import(args: argparse.Namespace) -> None:
     FIXTURES.mkdir(parents=True, exist_ok=True)
     for rid in _parse_ids(args.ids, db):
         row = db.execute(
-            "select r.status, r.input_path, r.challenge_id, c.masked_text, c.target_text, r.prompt_timings, "
+            "select r.status, r.input_path, r.challenge_id, c.masked_text, c.target_text, r.prompt_timings, c.slug, "
             "(select count(*) from recording r2 where r2.challenge_id = r.challenge_id and r2.id <= r.id) "
             "from recording r join challenge c on c.id = r.challenge_id where r.id = ?",
             (rid,),
@@ -83,7 +83,7 @@ def cmd_import(args: argparse.Namespace) -> None:
         if not row:
             print(f"  r{rid}: no such recording, skipped")
             continue
-        status, input_path, _, masked, target, prompt_timings, attempt = row
+        status, input_path, _, masked, target, prompt_timings, slug, attempt = row
         src = Path(input_path)
         if not src.exists() or src.stat().st_size == 0:
             print(f"  r{rid}: video file missing or empty, skipped")
@@ -104,6 +104,7 @@ def cmd_import(args: argparse.Namespace) -> None:
             "masked_text": masked,
             "target_text": target,
             "prompt_timings": prompt_timings or "",
+            "slug": slug,
             "expected": expected,
             "note": f"attempt {attempt}" + (", rendered after hitting the retake cap: label me" if forced else ""),
         })
@@ -138,6 +139,23 @@ def _select(fixtures: list[dict], args: argparse.Namespace) -> list[dict]:
 
 
 ANALYSIS_CACHE = BENCH_DIR / "analysis"
+REFERENCES = FIXTURES / "reference"
+_reference_times: dict[str, cadence.WordTimes] = {}
+
+
+def _reference_for(fx: dict) -> cadence.WordTimes | None:
+    """Word timings of the link's reference voice (recorded on the tuning page), if there is one."""
+    slug = fx.get("slug")
+    if not slug:
+        return None
+    if slug not in _reference_times:
+        path = next((p for p in sorted(REFERENCES.glob(f"{slug}.*"))), None)
+        try:
+            _reference_times[slug] = cadence.word_times(path, fx["target_text"]) if path else None
+        except Exception as exc:  # an unusable reference shouldn't stop the benchmark
+            print(f"  (couldn't time the reference for {slug}: {exc})")
+            _reference_times[slug] = None
+    return _reference_times[slug]
 
 
 def _run_one(fx: dict, out_dir: Path, reuse_analysis: bool) -> dict:
@@ -163,6 +181,11 @@ def _run_one(fx: dict, out_dir: Path, reuse_analysis: bool) -> dict:
     if res.output:
         c = scoring.clarity(res.output, fx["target_text"])
         row.update(clarity=c.score, sounds=c.sounds, heard=c.heard, output=out.name)
+        ref = _reference_for(fx)
+        if ref:
+            row["cadence_plain"] = cadence.compare(ref, cadence.word_times(res.output, fx["target_text"]))
+            if res.party_words:
+                row["cadence_party"] = cadence.compare(ref, res.party_words)
     return row
 
 
@@ -202,6 +225,9 @@ def _print_table(rows: list[dict], baseline: dict | None) -> None:
                   + (" sounds" + d if (d := _fmt_delta(snd, b.get("sounds"), "%", False)) else ""))
         if deltas.strip():
             print(f"{'':8} vs baseline:{deltas}")
+        for version in ("plain", "party"):
+            if r.get(f"cadence_{version}"):
+                print(f"{'':8} cadence ({version}): {cadence.summary(r[f'cadence_{version}'])}")
 
 
 def _summary(rows: list[dict]) -> dict:
