@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type Render, type TuneRecording, createRender, deleteRender, getRenders } from '../../tuneApi'
 import VersionedVideo from '../VersionedVideo'
+import ReferenceRecorder from './ReferenceRecorder'
 
 const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`)
 
@@ -83,6 +84,12 @@ export default function RecordingPanel({ recording, hasPending, onRendered }: Pr
           <p className="muted small">The first re-render analyses the recording (about 20 s). After that each takes a couple of seconds.</p>
         )}
         {error && <p className="error small">{error}</p>}
+        <ReferenceRecorder
+          recordingId={recording.id}
+          target={recording.target_text}
+          hasReference={recording.has_reference}
+          onChange={onRendered}
+        />
       </div>
 
       <div className="render-grid">

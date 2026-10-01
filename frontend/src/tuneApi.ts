@@ -26,6 +26,7 @@ export type TuneRecording = {
   original_party_video_url: string | null
   analysed: boolean
   renders: number
+  has_reference: boolean
 }
 
 export type Render = {
@@ -77,3 +78,14 @@ export const getRenders = (recordingId: number) => request<Render[]>(`/api/tune/
 export const createRender = (recordingId: number) =>
   request<Render>(`/api/tune/recordings/${recordingId}/renders`, json('POST'))
 export const deleteRender = (id: number) => request<{ ok: boolean }>(`/api/tune/renders/${id}`, json('DELETE'))
+
+export const referenceUrl = (recordingId: number) => `/api/tune/recordings/${recordingId}/reference`
+
+export function saveReference(recordingId: number, audio: Blob) {
+  const form = new FormData()
+  form.append('audio', audio, audio.type.includes('mp4') ? 'reference.mp4' : 'reference.webm')
+  return request<{ ok: boolean }>(referenceUrl(recordingId), { method: 'PUT', body: form })
+}
+
+export const deleteReference = (recordingId: number) =>
+  request<{ ok: boolean }>(referenceUrl(recordingId), json('DELETE'))

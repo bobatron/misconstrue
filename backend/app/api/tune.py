@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
@@ -182,6 +182,7 @@ def list_recordings() -> list[dict]:
             if rec.status == "done" and rec.party_output_path else None,
             "analysed": (work_dir(rec) / pipeline.ANALYSIS_FILE).exists(),
             "renders": counts.get(rec.id, 0),
+            "has_reference": reference_path(ch.slug) is not None,
         })
     return out
 
@@ -267,4 +268,61 @@ def delete_render(render_id: int) -> dict:
                 Path(path).unlink(missing_ok=True)
         s.delete(render)
         s.commit()
+    return {"ok": True}
+
+
+# ── Reference voice ────────────────────────────────────────────────────────────
+# You saying the target sentence the way the finished video should sound (speed, rhythm). One per
+# link. Kept with the benchmark fixtures (private, git-ignored) to measure the output's cadence.
+
+REFERENCE_DIR = config.ROOT / "backend" / "tests" / "fixtures" / "reference"
+REFERENCE_SUFFIXES = {".webm", ".mp4", ".m4a", ".ogg", ".wav", ".mp3"}
+MAX_REFERENCE_BYTES = 20 * 1024 * 1024
+
+
+def reference_path(slug: str) -> Path | None:
+    for path in sorted(REFERENCE_DIR.glob(f"{slug}.*")):
+        if path.suffix.lower() in REFERENCE_SUFFIXES:
+            return path
+    return None
+
+
+def _slug_for(recording_id: int) -> str:
+    with session() as s:
+        rec = s.get(Recording, recording_id)
+        if not rec:
+            raise HTTPException(404, "Recording not found")
+        return s.get(Challenge, rec.challenge_id).slug
+
+
+@router.get("/recordings/{recording_id}/reference")
+def get_reference(recording_id: int) -> FileResponse:
+    path = reference_path(_slug_for(recording_id))
+    if not path:
+        raise HTTPException(404, "No reference yet")
+    return FileResponse(path)
+
+
+@router.put("/recordings/{recording_id}/reference")
+async def save_reference(recording_id: int, audio: UploadFile) -> dict:
+    slug = _slug_for(recording_id)
+    suffix = Path(audio.filename or "").suffix.lower()
+    if suffix not in REFERENCE_SUFFIXES:
+        suffix = ".mp4" if "mp4" in (audio.content_type or "") else ".webm"
+    data = await audio.read()
+    if not data or len(data) > MAX_REFERENCE_BYTES:
+        raise HTTPException(422, "That recording is empty or too big")
+    REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
+    old = reference_path(slug)
+    if old:
+        old.unlink()
+    (REFERENCE_DIR / f"{slug}{suffix}").write_bytes(data)
+    return {"ok": True, "slug": slug}
+
+
+@router.delete("/recordings/{recording_id}/reference")
+def delete_reference(recording_id: int) -> dict:
+    path = reference_path(_slug_for(recording_id))
+    if path:
+        path.unlink()
     return {"ok": True}

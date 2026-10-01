@@ -72,3 +72,27 @@ def test_recordings_are_only_reachable_by_their_secret_code(client):
     listed = client.get(f"/api/results/{ch['results_token']}").json()["recordings"]
     assert [r["id"] for r in listed] == [code]
     assert listed[0]["video_url"] == f"/api/recordings/{code}/video"
+
+
+def test_reference_voice_upload_fetch_delete(client, tmp_path, monkeypatch):
+    from app.api import tune
+    from app.models import Challenge
+    from sqlmodel import select
+
+    monkeypatch.setattr(tune, "REFERENCE_DIR", tmp_path / "reference")
+    ch = _create(client)
+    with session() as s:
+        c = s.exec(select(Challenge).where(Challenge.slug == ch["slug"])).one()
+        rec = Recording(challenge_id=c.id, input_path="x")
+        s.add(rec)
+        s.commit()
+        s.refresh(rec)
+        rid = rec.id
+    local = TestClient(client.app, client=("127.0.0.1", 5000), base_url="http://localhost:5173")
+    assert local.get(f"/api/tune/recordings/{rid}/reference").status_code == 404
+    res = local.put(f"/api/tune/recordings/{rid}/reference", files={"audio": ("reference.webm", b"fake-audio", "audio/webm")})
+    assert res.status_code == 200
+    assert (tmp_path / "reference" / f"{ch['slug']}.webm").read_bytes() == b"fake-audio"
+    assert local.get(f"/api/tune/recordings/{rid}/reference").content == b"fake-audio"
+    assert local.delete(f"/api/tune/recordings/{rid}/reference").status_code == 200
+    assert not (tmp_path / "reference" / f"{ch['slug']}.webm").exists()
