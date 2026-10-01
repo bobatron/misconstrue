@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, type Results, getResults } from '../api'
 import CopyField from '../components/CopyField'
+import VersionedVideo from '../components/VersionedVideo'
 
 const POLL_MS = 4000
 
@@ -76,10 +77,7 @@ export default function ResultsPage() {
       {done.map((r, i) => (
         <section key={r.id} className="card">
           <h2>{i === 0 ? 'misconstrued!' : 'An earlier take'}</h2>
-          <video className="result-video" src={r.video_url!} controls playsInline preload="metadata" />
-          <div className="button-row">
-            <a className="button secondary" href={r.video_url!} download="misconstrued.mp4">Download</a>
-          </div>
+          <VersionedVideo className="result-video" plainUrl={r.video_url!} partyUrl={r.party_video_url} />
           <p className="muted small">{new Date(r.created_at).toLocaleString()}</p>
         </section>
       ))}

@@ -151,6 +151,8 @@ def _render_json(r: Render) -> dict:
         "sounds": r.sounds,
         "heard": r.heard,
         "video_url": f"/api/tune/renders/{r.id}/video" if r.status == "done" else None,
+        "party_video_url": f"/api/tune/renders/{r.id}/video?version=party"
+        if r.status == "done" and r.party_output_path and Path(r.party_output_path).exists() else None,
         "created_at": r.created_at.isoformat(),
     }
 
@@ -176,6 +178,8 @@ def list_recordings() -> list[dict]:
             "status": rec.status,
             "created_at": rec.created_at.isoformat(),
             "original_video_url": f"/api/recordings/{rec.public_id}/video" if rec.status == "done" else None,
+            "original_party_video_url": f"/api/recordings/{rec.public_id}/video?version=party"
+            if rec.status == "done" and rec.party_output_path else None,
             "analysed": (work_dir(rec) / pipeline.ANALYSIS_FILE).exists(),
             "renders": counts.get(rec.id, 0),
         })
@@ -233,6 +237,7 @@ def _run_render(render_id: int) -> None:
         render.message = res.message
         render.timings_json = json.dumps(res.timings)
         render.output_path = str(res.output or "")
+        render.party_output_path = str(res.party_output or "")
         if clarity:
             render.clarity, render.sounds, render.heard = clarity.score, clarity.sounds, clarity.heard
         s.add(render)
@@ -240,12 +245,13 @@ def _run_render(render_id: int) -> None:
 
 
 @router.get("/renders/{render_id}/video")
-def render_video(render_id: int) -> FileResponse:
+def render_video(render_id: int, version: str = "plain") -> FileResponse:
     with session() as s:
         render = s.get(Render, render_id)
-    if not render or render.status != "done" or not Path(render.output_path).exists():
+    path = (render.party_output_path if version == "party" else render.output_path) if render else ""
+    if not render or render.status != "done" or not path or not Path(path).exists():
         raise HTTPException(404, "Video not ready")
-    return FileResponse(render.output_path, media_type="video/mp4")
+    return FileResponse(path, media_type="video/mp4")
 
 
 @router.delete("/renders/{render_id}")
@@ -256,8 +262,9 @@ def delete_render(render_id: int) -> dict:
             raise HTTPException(404, "Render not found")
         if render.status in ("queued", "processing"):
             raise HTTPException(409, "Wait for it to finish first")
-        if render.output_path:
-            Path(render.output_path).unlink(missing_ok=True)
+        for path in (render.output_path, render.party_output_path):
+            if path:
+                Path(path).unlink(missing_ok=True)
         s.delete(render)
         s.commit()
     return {"ok": True}

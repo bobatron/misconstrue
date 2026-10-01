@@ -160,6 +160,12 @@ def video_url(rec: Recording) -> str | None:
     return f"/api/recordings/{rec.public_id}/video" if rec.status == "done" else None
 
 
+def party_video_url(rec: Recording) -> str | None:
+    if rec.status == "done" and rec.party_output_path and Path(rec.party_output_path).exists():
+        return f"/api/recordings/{rec.public_id}/video?version=party"
+    return None
+
+
 @router.get("/recordings/{public_id}")
 def recording_status(public_id: str) -> dict:
     rec, ch = _recording(public_id)
@@ -169,16 +175,19 @@ def recording_status(public_id: str) -> dict:
         body["missing_tokens"] = [t for t, words in enumerate(display_tokens(ch.masked_text)) if set(words) & missing]
     if rec.status == "done":
         body["video_url"] = video_url(rec)
+        body["party_video_url"] = party_video_url(rec)
         body["target_text"] = ch.target_text  # the reveal
     return body
 
 
 @router.get("/recordings/{public_id}/video")
-def recording_video(public_id: str) -> FileResponse:
+def recording_video(public_id: str, version: str = "plain") -> FileResponse:
     rec, _ = _recording(public_id)
-    if rec.status != "done" or not Path(rec.output_path).exists():
+    path = rec.party_output_path if version == "party" else rec.output_path
+    if rec.status != "done" or not path or not Path(path).exists():
         raise HTTPException(404, "Video not ready")
-    return FileResponse(rec.output_path, media_type="video/mp4", filename="misconstrued.mp4")
+    name = "misconstrued-party.mp4" if version == "party" else "misconstrued.mp4"
+    return FileResponse(path, media_type="video/mp4", filename=name)
 
 
 @router.get("/results/{token}")
@@ -195,7 +204,8 @@ def results(token: str) -> dict:
         "masked_text": ch.masked_text,
         "created_at": ch.created_at.isoformat(),
         "recordings": [
-            {"id": r.public_id, "status": r.status, "created_at": r.created_at.isoformat(), "video_url": video_url(r)}
+            {"id": r.public_id, "status": r.status, "created_at": r.created_at.isoformat(),
+             "video_url": video_url(r), "party_video_url": party_video_url(r)}
             for r in recs
         ],
     }

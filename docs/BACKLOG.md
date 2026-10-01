@@ -36,7 +36,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | FEAT-2 | ✅ Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | Done | — |
 | FEAT-3a | ✅ Party mode: generated dance beat, words land on the beat | Feature | M | Done | — |
 | FEAT-3b | ✅ Party mode: beat-timed effects + big word captions, intro/end cards | Feature | M | Done | FEAT-3a |
-| FEAT-3c | Party mode: both versions rendered, switch + downloads on pages, settings | Feature | S | **P0** | FEAT-3a |
+| FEAT-3c | ✅ Party mode: both versions rendered, switch + downloads on pages, settings | Feature | S | Done | FEAT-3a |
 | POL-3 | ✅ Better masked sentences (fewer word-list fallbacks) | Polish | M | Done | — |
 | POL-4 | ✅ Carrier word clean-up (names like "Boston", odd words) | Polish | S | Done | — |
 | POL-5 | ✅ Friendlier error & edge-case screens | Polish | S | Done | — |
@@ -450,10 +450,14 @@ beat, off-beat hats, claps on 2 and 4, pumping bass and chords).
 - **3b · Effects `M` ✅:** zoom punch on every beat, slight wobble, colour shift per word, flash on
   each bar's first beat, the current word as a big caption, intro and "misconstrued!" end cards;
   drawn frame by frame with numpy/Pillow (ffmpeg here has no drawtext).
-- **3c · Pages `S`:** render plain + party during processing; reveal and results pages default to
+- **3c · Pages `S` ✅:** render plain + party during processing; reveal and results pages default to
   party with a switch to plain; both downloadable; party settings on /tune.
 **Done when:** words start exactly on beats (tests), A/V in sync with effects on, processing under
 ~10 s, and it sounds/looks fun to you and your brothers. Clarity stays scored on the plain video.
+**Status:** built. Both versions are made per upload (~11.5 s total, party ~3.3 s); reveal and
+results pages open on the party version with a Party/Plain switch and matching download; /tune
+shows both for re-renders and has the party settings (tempo, speech speed, music volume,
+ducking, effects on/off, captions on/off). **Waiting on:** your listening/watching verdict.
 
 ## Polish (rest of the original Phase 4)
 

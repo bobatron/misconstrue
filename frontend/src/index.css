@@ -246,3 +246,9 @@ button.pulse { animation: pulse-btn 0.9s infinite alternate; }
 .my-links li { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .my-links a { color: var(--text); font-weight: 600; }
 .my-links button { margin-left: auto; }
+
+/* ── Party / plain switch ────────────────────────────────────────────────── */
+.versioned-video { display: flex; flex-direction: column; gap: 8px; }
+.version-switch { display: inline-flex; align-self: center; border: 2px solid var(--border); border-radius: 999px; padding: 3px; gap: 3px; }
+.version-switch button { background: transparent; color: var(--muted); padding: 6px 16px; font-size: 0.95rem; }
+.version-switch button.on { background: var(--accent); color: var(--accent-text); }

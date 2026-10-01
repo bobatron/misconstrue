@@ -11,7 +11,7 @@ export type Challenge = {
 export type RecordingStatus =
   | { status: 'uploaded' | 'processing' | 'failed'; message: string }
   | { status: 'needs_retake'; message: string; missing_tokens: number[] }
-  | { status: 'done'; message: string; video_url: string; target_text: string }
+  | { status: 'done'; message: string; video_url: string; party_video_url: string | null; target_text: string }
 
 /** An API failure with a message fit to show people. `status` 0 = couldn't reach the server. */
 export class ApiError extends Error {
@@ -43,7 +43,13 @@ export type Results = {
   target_text: string
   masked_text: string
   created_at: string
-  recordings: { id: string; status: RecordingStatus['status']; created_at: string; video_url: string | null }[]
+  recordings: {
+    id: string
+    status: RecordingStatus['status']
+    created_at: string
+    video_url: string | null
+    party_video_url: string | null
+  }[]
 }
 
 export const createChallenge = (text: string) =>

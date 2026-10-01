@@ -4,6 +4,7 @@ import { ApiError, type Challenge, getChallenge, getRecording, uploadRecording }
 import { unlockAudio } from '../components/audio'
 import { type PromptTiming, usePrompter } from '../components/usePrompter'
 import MirroredPlayer from '../components/MirroredPlayer'
+import VersionedVideo from '../components/VersionedVideo'
 import { MAX_SECONDS, useRecorder } from '../components/useRecorder'
 
 type Retake = { message: string; missing: number[] }
@@ -20,7 +21,7 @@ type Stage =
   | { name: 'processing' }
   | { name: 'sendFailed'; blob: Blob; message: string } // upload didn't get through: keep the video, offer to resend
   | { name: 'slow'; recording: string } // processing is taking unusually long
-  | { name: 'done'; videoUrl: string; target: string }
+  | { name: 'done'; videoUrl: string; partyUrl: string | null; target: string }
   | { name: 'failed'; message: string }
 
 export default function RecordPage() {
@@ -123,7 +124,8 @@ export default function RecordPage() {
       try {
         const s = await getRecording(recording)
         failures = 0
-        if (s.status === 'done') return setStage({ name: 'done', videoUrl: s.video_url, target: s.target_text })
+        if (s.status === 'done')
+          return setStage({ name: 'done', videoUrl: s.video_url, partyUrl: s.party_video_url, target: s.target_text })
         if (s.status === 'needs_retake') return backToRecording({ message: s.message, missing: s.missing_tokens })
         if (s.status === 'failed') return setStage({ name: 'failed', message: s.message })
       } catch (e) {
@@ -258,37 +260,9 @@ export default function RecordPage() {
         <main className="page">
           <h1 className="logo">misconstrued!</h1>
           <p className="tagline">Here's what you <em>actually</em> said:</p>
-          <div className="stage" style={stageStyle}><video className="camera" src={stage.videoUrl} controls autoPlay playsInline onLoadedMetadata={fitToVideo} /></div>
+          <VersionedVideo className="result-video" plainUrl={stage.videoUrl} partyUrl={stage.partyUrl} />
           <blockquote className="masked">“{stage.target}”</blockquote>
-          <div className="button-row">
-            <a className="button secondary" href={stage.videoUrl} download="misconstrued.mp4">Download</a>
-            <Link className="button" to="/">Get revenge</Link>
-          </div>
-        </main>
-      )
-
-    case 'sendFailed':
-      return (
-        <main className="page">
-          <section className="card">
-            <h2>That didn't send</h2>
-            <p className="error">{stage.message}</p>
-            <p className="muted small">Your recording is still here, so you don't have to do it again.</p>
-            <button className="wide" onClick={() => submit(stage.blob)}>Send again</button>
-            <button className="secondary wide" onClick={() => backToRecording()}>Record again instead</button>
-          </section>
-        </main>
-      )
-
-    case 'slow':
-      return (
-        <main className="page">
-          <section className="card">
-            <h2>This is taking longer than usual</h2>
-            <p className="muted">It normally takes about 10 seconds. It may still finish.</p>
-            <button className="wide" onClick={() => waitForVideo(stage.recording)}>Keep waiting</button>
-            <button className="secondary wide" onClick={() => backToRecording()}>Record again</button>
-          </section>
+          <Link className="button" to="/">Get revenge</Link>
         </main>
       )
 

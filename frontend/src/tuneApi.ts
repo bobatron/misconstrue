@@ -23,6 +23,7 @@ export type TuneRecording = {
   status: string
   created_at: string
   original_video_url: string | null
+  original_party_video_url: string | null
   analysed: boolean
   renders: number
 }
@@ -38,6 +39,7 @@ export type Render = {
   sounds: number | null
   heard: string
   video_url: string | null
+  party_video_url: string | null
   created_at: string
 }
 

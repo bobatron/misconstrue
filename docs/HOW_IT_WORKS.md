@@ -213,6 +213,23 @@ Code: `backend/app/core/splice.py`, `editor.py`, `media.py`
 
 ---
 
+## Party mode (music and effects)
+
+Every upload also gets a **party version**, shown by default (the plain video is one tap away):
+
+- **The music is generated in code**: a dance beat at 124 BPM (kick on every beat, claps on 2 and
+  4, off-beat hi-hats and bass, chords that "pump" with the kick). No recordings, so no licensing.
+- **Each word lands on a beat**, after a one-bar intro. Cut pieces are split where words end, so
+  every word can start on its own beat; a long word takes two beats. The music dips while a word
+  is spoken so it stays clear.
+- **Effects timed to the beat**: a zoom "punch" on every beat, a gentle wobble, a different colour
+  for each word, a flash at the start of each bar, the current word as a big caption, and
+  "misconstrue presents…" / "misconstrued!" cards at the start and end.
+- Tempo, speech speed, music volume and each effect are on the tuning page.
+
+Code: `backend/app/core/party.py` (music, beat layout), `effects.py` (video effects),
+`editor.render_party`.
+
 ## How long does it take?
 
 About **6 seconds** per video (averaged over your recordings with `make bench`):

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type Render, type TuneRecording, createRender, deleteRender, getRenders } from '../../tuneApi'
+import VersionedVideo from '../VersionedVideo'
 
 const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`)
 
@@ -14,7 +15,7 @@ function RenderCard({ r, onDelete }: { r: Render; onDelete: () => void }) {
         {!busy && <button className="link tiny" onClick={onDelete}>delete</button>}
       </div>
       {r.video_url ? (
-        <video className="render-video" src={r.video_url} controls playsInline preload="metadata" />
+        <VersionedVideo className="render-video" plainUrl={r.video_url} partyUrl={r.party_video_url} download={false} />
       ) : (
         <div className="render-video placeholder">
           {busy ? <div className="spinner" /> : <p className="small">{r.message || r.status}</p>}
@@ -88,7 +89,7 @@ export default function RecordingPanel({ recording, hasPending, onRendered }: Pr
         {recording.original_video_url && (
           <article className="card render">
             <div className="render-head"><strong>Original</strong><span className="muted small">as User 2 saw it</span></div>
-            <video className="render-video" src={recording.original_video_url} controls playsInline preload="metadata" />
+            <VersionedVideo className="render-video" plainUrl={recording.original_video_url} partyUrl={recording.original_party_video_url} download={false} />
           </article>
         )}
         {renders.map((r) => (

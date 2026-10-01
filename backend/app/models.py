@@ -61,6 +61,7 @@ class Render(SQLModel, table=True):
     sounds: float | None = None
     heard: str = ""
     output_path: str = ""
+    party_output_path: str = ""
     created_at: datetime = Field(default_factory=now)
 
 
