@@ -34,6 +34,7 @@ GROUPS = {
     "check": "Retake check: how strict we are about reading the whole sentence",
     "recording": "Recording: what User 2 sees while recording",
     "video": "Output video",
+    "party": "Party mode: music and effects",
     "limits": "Limits",
     "system": "Models, paths & services (advanced)",
 }
@@ -122,6 +123,19 @@ class Settings(BaseModel):
     OUTPUT_HEIGHT: int = setting(480, "video", "Output video height in pixels.", ge=144, le=1080)
     FPS: int = setting(30, "video", "Output frames per second.", ge=10, le=60)
     AUDIO_SR: int = setting(48000, "video", "Output audio sample rate (Hz).", ge=16000, le=96000)
+
+    # ── Party mode ─────────────────────────────────────────────────────────────
+    PARTY_MODE: bool = setting(
+        True, "party", "Also make the party version: a generated dance beat with each word landing on a beat. "
+        "Shown by default; the plain video stays available.")
+    PARTY_BPM: float = setting(124, "party", "Tempo of the dance beat (beats per minute).", ge=80, le=160)
+    PARTY_PLAYBACK_SPEED: float = setting(
+        0.85, "party", "Speech speed in the party version (1.0 = as recorded). The beat already spaces the words "
+        "out, so it needn't be as slow as the plain video.", ge=0.4, le=1.0)
+    MUSIC_VOLUME: float = setting(0.5, "party", "How loud the music is under the voice (0-1).", ge=0.0, le=1.0)
+    MUSIC_DUCKING: float = setting(
+        0.6, "party", "How much the music dips while a word is spoken, so it stays clear (0 = not at all).",
+        ge=0.0, le=1.0)
 
     # ── Limits ─────────────────────────────────────────────────────────────────
     MAX_TARGET_WORDS: int = setting(25, "limits", "Longest sentence User 1 may enter (words).", ge=1, le=100)

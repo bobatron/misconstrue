@@ -22,6 +22,7 @@ class PipelineResult:
     message: str = ""
     missing: list[int] = field(default_factory=list)
     output: Path | None = None
+    party_output: Path | None = None  # the party-mode version (music + words on the beat)
     timings: dict[str, float] = field(default_factory=dict)  # seconds per step
 
 
@@ -175,4 +176,13 @@ def _run(
 
     with timer("render"):
         editor.render(plan[0], alignment, norm, out, workdir)
-    return PipelineResult("done", output=out)
+    party_out = None
+    if config.PARTY_MODE:
+        party_out = out.with_name(f"{out.stem}-party{out.suffix}")
+        try:
+            with timer("party"):
+                editor.render_party(plan[0], target, alignment, norm, party_out, workdir)
+        except Exception:  # the plain video is what matters; never lose it to a party-mode problem
+            log.exception("party-mode render failed")
+            party_out = None
+    return PipelineResult("done", output=out, party_output=party_out)

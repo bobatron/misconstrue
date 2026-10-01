@@ -54,6 +54,8 @@ def cmd_run(args: argparse.Namespace) -> None:
         print(f"Message: {res.message}")
     if res.output:
         print(f"Output: {res.output}")
+    if res.party_output:
+        print(f"Party version: {res.party_output}")
     print(f"Work files: {workdir}")
 
 

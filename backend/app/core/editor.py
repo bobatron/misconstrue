@@ -8,8 +8,9 @@ import numpy as np
 import soundfile as sf
 
 from app import config
-from app.core import media
+from app.core import media, party
 from app.core.aligner import Alignment
+from app.core.phonetics import Phone
 from app.core.splice import Span
 from app.core.stretch import stretch_piece
 
@@ -50,9 +51,9 @@ def segments_for(spans: list[Span], alignment: Alignment, audio: np.ndarray, sr:
     return segs
 
 
-def _stretch_factors(segs: list[Segment]) -> None:
-    """Slow everything by PLAYBACK_SPEED, and very short pieces a bit more (MIN_PIECE_MS)."""
-    base = 1.0 / config.PLAYBACK_SPEED
+def _stretch_factors(segs: list[Segment], speed: float) -> None:
+    """Slow everything by `speed`, and very short pieces a bit more (MIN_PIECE_MS)."""
+    base = 1.0 / speed
     min_s = config.MIN_PIECE_MS / 1000
     for seg in segs:
         factor = base
@@ -61,30 +62,42 @@ def _stretch_factors(segs: list[Segment]) -> None:
         seg.stretch = factor
 
 
-def _stitch(segs: list[Segment], audio: np.ndarray, sr: int) -> np.ndarray:
-    xf = int(sr * config.CROSSFADE_MS / 1000)
-    _stretch_factors(segs)
+def _prepare_clips(segs: list[Segment], audio: np.ndarray, sr: int, speed: float) -> list[np.ndarray]:
+    """Cut and stretch each piece, and even out loudness so pieces from loud and quiet words match."""
+    _stretch_factors(segs, speed)
     clips = [stretch_piece(audio, sr, s.src_start, s.src_end, s.stretch) for s in segs]
-
-    # Even out loudness so fragments from loud and quiet words match.
     rms = np.array([np.sqrt(np.mean(c**2)) if len(c) else 0.0 for c in clips])
     target = float(np.median(rms[rms > 0])) if np.any(rms > 0) else 0.0
     for c, r in zip(clips, rms):
         if r > 0:
             c *= float(np.clip(target / r, 0.6, 1.8))
+    return clips
 
-    lead = np.zeros(int(sr * config.LEAD_IN_S), dtype=audio.dtype)
-    out = lead.copy()
-    fade_in = np.linspace(0, 1, xf, dtype=audio.dtype)
+
+def _join(segs: list[Segment], clips: list[np.ndarray], sr: int, start_s: float = 0.0) -> np.ndarray:
+    """Crossfade pieces one after another; sets each segment's out_start (offset by start_s)."""
+    xf = int(sr * config.CROSSFADE_MS / 1000)
+    fade_in = np.linspace(0, 1, xf, dtype=np.float32)
+    out = np.zeros(0, dtype=np.float32)
     for seg, c in zip(segs, clips):
-        k = min(xf, len(c), len(out) - len(lead)) if len(out) > len(lead) else 0
-        seg.out_start = (len(out) - k) / sr
+        k = min(xf, len(c), len(out))
+        seg.out_start = start_s + (len(out) - k) / sr
         if k:
             out[-k:] = out[-k:] * fade_in[::-1][-k:] + c[:k] * fade_in[:k]
         out = np.concatenate([out, c[k:]])
-    out = np.concatenate([out, lead])
-    peak = float(np.max(np.abs(out))) if len(out) else 0.0
-    return out / peak * 0.95 if peak > 0.95 else out
+    return out
+
+
+def _normalise_peak(x: np.ndarray, peak: float = 0.95) -> np.ndarray:
+    m = float(np.max(np.abs(x))) if len(x) else 0.0
+    return x / m * peak if m > peak else x
+
+
+def _stitch(segs: list[Segment], audio: np.ndarray, sr: int) -> np.ndarray:
+    clips = _prepare_clips(segs, audio, sr, config.PLAYBACK_SPEED)
+    lead = np.zeros(int(sr * config.LEAD_IN_S), dtype=np.float32)
+    voice = _join(segs, clips, sr, start_s=len(lead) / sr)
+    return _normalise_peak(np.concatenate([lead, voice, lead]))
 
 
 def _frames(segs: list[Segment], frames: np.ndarray, total_s: float) -> np.ndarray:
@@ -106,10 +119,13 @@ def _frames(segs: list[Segment], frames: np.ndarray, total_s: float) -> np.ndarr
     return frames[np.clip(idx, 0, len(frames) - 1)]
 
 
-def render(spans: list[Span], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path) -> Path:
+def _load_audio(norm: media.Normalised) -> tuple[np.ndarray, int]:
     audio, sr = sf.read(norm.wav48, dtype="float32")
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
+    return (audio.mean(axis=1) if audio.ndim > 1 else audio), sr
+
+
+def render(spans: list[Span], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path) -> Path:
+    audio, sr = _load_audio(norm)
     # Alignment was done on the 16 kHz file; times are in seconds so they carry over.
     segs = segments_for(spans, alignment, audio, sr)
     stitched = _stitch(segs, audio, sr)
@@ -118,3 +134,46 @@ def render(spans: list[Span], alignment: Alignment, norm: media.Normalised, out:
     frames = _frames(segs, media.read_frames(norm.video), len(stitched) / sr)
     media.write_video(frames, out_wav, out, workdir)
     return out
+
+
+@dataclass
+class PartyInfo:
+    """Where things land in the party video (for effects and captions)."""
+
+    bpm: float
+    beats: int
+    slots: list[party.WordSlot]
+
+
+def render_party(
+    spans: list[Span], target: list[Phone], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path
+) -> PartyInfo:
+    """The party version: each word of the sentence starts on a beat of a generated dance track."""
+    audio, sr = _load_audio(norm)
+    tagged = party.split_at_words(spans, target)
+    segs = segments_for([sp for _, sp in tagged], alignment, audio, sr)
+    clips = _prepare_clips(segs, audio, sr, config.PARTY_PLAYBACK_SPEED)
+
+    # Join the pieces of each word, then put each word on its beat.
+    words: list[tuple[int, list[int]]] = []  # (target word index, piece indices)
+    for i, (w, _) in enumerate(tagged):
+        if not words or words[-1][0] != w:
+            words.append((w, []))
+        words[-1][1].append(i)
+    joined = [_join([segs[i] for i in idx], [clips[i] for i in idx], sr) for _, idx in words]
+    slots, beats = party.lay_out([(w, len(a) / sr) for (w, _), a in zip(words, joined)], config.PARTY_BPM)
+
+    music = party.track(config.PARTY_BPM, beats, sr)
+    voice = np.zeros_like(music)
+    for slot, (_, idx), a in zip(slots, words, joined):
+        i = int(slot.start_s * sr)
+        voice[i : i + len(a)] += a[: len(voice) - i]
+        for k in idx:  # pieces were timed from the word's start: move them to its beat
+            segs[k].out_start += slot.start_s
+    mix = _normalise_peak(voice + party.duck(music, voice, sr, config.MUSIC_DUCKING) * config.MUSIC_VOLUME)
+
+    out_wav = workdir / "party.wav"
+    sf.write(out_wav, mix, sr)
+    frames = _frames(segs, media.read_frames(norm.video), len(mix) / sr)
+    media.write_video(frames, out_wav, out, workdir)
+    return PartyInfo(config.PARTY_BPM, beats, slots)

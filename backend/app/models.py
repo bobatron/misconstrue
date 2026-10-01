@@ -43,6 +43,7 @@ class Recording(SQLModel, table=True):
     missing: str = ""  # comma-separated masked word indices the speaker missed
     input_path: str
     output_path: str = ""
+    party_output_path: str = ""  # party-mode version (music, words on the beat)
     prompt_timings: str = ""  # JSON from the prompter: when each prompt was shown and spoken
     created_at: datetime = Field(default_factory=now)
 

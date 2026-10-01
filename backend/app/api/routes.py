@@ -143,6 +143,7 @@ def _process(recording_id: int, challenge_id: int, force: bool) -> None:
         rec.message = res.message
         rec.missing = ",".join(map(str, res.missing))
         rec.output_path = str(res.output or "")
+        rec.party_output_path = str(res.party_output or "")
         s.add(rec)
         s.commit()
 

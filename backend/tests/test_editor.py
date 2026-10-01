@@ -18,10 +18,9 @@ def test_slowed_piece_shows_matching_frames(monkeypatch):
 
 
 def test_stretch_factors(monkeypatch):
-    monkeypatch.setattr(config.settings, "PLAYBACK_SPEED", 0.8)
     monkeypatch.setattr(config.settings, "MIN_PIECE_MS", 150)
     long, short, tiny = Segment(0, 0.3), Segment(0, 0.1), Segment(0, 0.02)
-    editor._stretch_factors([long, short, tiny])
+    editor._stretch_factors([long, short, tiny], 0.8)
     assert long.stretch == 1.25  # just the overall slow-down
     assert abs(short.stretch - 1.5) < 1e-9  # 0.1 s -> 0.125 s after slowing -> stretched to 0.15 s
     assert tiny.stretch == 1.25 * editor.MAX_EXTRA_STRETCH  # capped

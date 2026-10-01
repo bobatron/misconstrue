@@ -34,7 +34,7 @@ Small, independently shippable work items. Sizes: **S** ≈ under an hour, **M**
 | POL-2 | ✅ Safari / iPhone recording support (iPhone itself not yet tried) | Polish | M | Done | — |
 | FEAT-1 | ✅ User 1 can see the finished video (private results link) | Feature | M | Done | — |
 | FEAT-2 | ✅ Mirrored review playback with custom controls (finished video stays un-mirrored) | Feature | S | Done | — |
-| FEAT-3a | Party mode: generated dance beat, words land on the beat | Feature | M | **P0** | — |
+| FEAT-3a | ✅ Party mode: generated dance beat, words land on the beat | Feature | M | Done | — |
 | FEAT-3b | Party mode: beat-timed effects + big word captions, intro/end cards | Feature | M | **P0** | FEAT-3a |
 | FEAT-3c | Party mode: both versions rendered, switch + downloads on pages, settings | Feature | S | **P0** | FEAT-3a |
 | POL-3 | ✅ Better masked sentences (fewer word-list fallbacks) | Polish | M | Done | — |
@@ -444,7 +444,7 @@ recording's length. Checked in the browser (mirrored video, unmirrored controls,
 Decisions: **generated** electronic dance beat (no licensing), **party mode on by default** with
 the plain video as the alternative, **big word captions**, dance feel (~124 BPM, kick on every
 beat, off-beat hats, claps on 2 and 4, pumping bass and chords).
-- **3a · Beat engine `M`:** synthesise the track in code (`core/party.py`); split cut pieces at
+- **3a · Beat engine `M` ✅:** synthesise the track in code (`core/party.py`); split cut pieces at
   target-word boundaries; each target word starts on a beat (padded to the next beat, long words
   take two); a 1-bar intro; music ducks under the voice; separate `PARTY_PLAYBACK_SPEED`.
 - **3b · Effects `M`:** zoom punch on every beat, slight wobble, colour shift per word, flash on

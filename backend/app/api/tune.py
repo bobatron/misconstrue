@@ -52,6 +52,7 @@ AFFECTS = {
     "check": "Checking uploads and re-renders",
     "recording": "The record page (reload it)",
     "video": "Videos and re-renders",
+    "party": "Videos and re-renders",
     "limits": "New links and uploads",
     "system": "Needs a restart: change in .env",
 }
@@ -72,7 +73,10 @@ def _field_info(name: str) -> dict[str, Any]:
         "editable": config.tunable(name),
         "source": config.source(name),
     }
-    if get_origin(annotation) is Literal:
+    if annotation is bool:
+        info["type"] = "choice"
+        info["choices"] = [True, False]
+    elif get_origin(annotation) is Literal:
         info["type"] = "choice"
         info["choices"] = list(get_args(annotation))
     elif annotation in (int, float):
