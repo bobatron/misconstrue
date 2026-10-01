@@ -132,6 +132,10 @@ class Settings(BaseModel):
     PARTY_PLAYBACK_SPEED: float = setting(
         0.85, "party", "Speech speed in the party version (1.0 = as recorded). The beat already spaces the words "
         "out, so it needn't be as slow as the plain video.", ge=0.4, le=1.0)
+    PARTY_EFFECTS: bool = setting(
+        True, "party", "Beat-timed video effects: zoom punch, wobble, a colour per word, a flash each bar.")
+    PARTY_CAPTIONS: bool = setting(
+        True, "party", "Show each word big on screen as it's said, plus the intro and 'misconstrued!' cards.")
     MUSIC_VOLUME: float = setting(0.5, "party", "How loud the music is under the voice (0-1).", ge=0.0, le=1.0)
     MUSIC_DUCKING: float = setting(
         0.6, "party", "How much the music dips while a word is spoken, so it stays clear (0 = not at all).",

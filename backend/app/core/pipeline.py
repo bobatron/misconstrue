@@ -175,13 +175,15 @@ def _run(
         return PipelineResult("failed", "Some sounds were missing from the recording.")
 
     with timer("render"):
-        editor.render(plan[0], alignment, norm, out, workdir)
+        source_frames = media.read_frames(norm.video)  # shared by the plain and party renders
+        editor.render(plan[0], alignment, norm, out, workdir, frames=source_frames)
     party_out = None
     if config.PARTY_MODE:
         party_out = out.with_name(f"{out.stem}-party{out.suffix}")
         try:
             with timer("party"):
-                editor.render_party(plan[0], target, alignment, norm, party_out, workdir)
+                editor.render_party(plan[0], target, phonetics.tokenize(target_text), alignment, norm, party_out,
+                                    workdir, source_frames=source_frames)
         except Exception:  # the plain video is what matters; never lose it to a party-mode problem
             log.exception("party-mode render failed")
             party_out = None

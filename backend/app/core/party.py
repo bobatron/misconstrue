@@ -140,7 +140,16 @@ def lay_out(word_lengths: list[tuple[int, float]], bpm: float) -> tuple[list[Wor
 def duck(music: np.ndarray, voice: np.ndarray, sr: int, depth: float) -> np.ndarray:
     """Turn the music down while someone is speaking (smoothed), so the words stay clear."""
     win = int(0.05 * sr)
-    level = np.sqrt(np.convolve(voice**2, np.ones(win) / win, mode="same"))
+    level = np.sqrt(_moving_average(voice.astype(np.float64) ** 2, win))
     level = level / (float(level.max()) or 1.0)
-    smooth = np.convolve(level, np.ones(win * 3) / (win * 3), mode="same")
+    smooth = _moving_average(level, win * 3)
     return (music * (1 - depth * np.clip(smooth * 3, 0, 1))).astype(np.float32)
+
+
+def _moving_average(x: np.ndarray, win: int) -> np.ndarray:
+    """Centred moving average via a running sum (np.convolve was ~100x slower on long audio)."""
+    c = np.concatenate([[0.0], np.cumsum(x)])
+    half = win // 2
+    idx = np.arange(len(x))
+    lo, hi = np.clip(idx - half, 0, len(x)), np.clip(idx + half + 1, 0, len(x))
+    return (c[hi] - c[lo]) / np.maximum(hi - lo, 1)

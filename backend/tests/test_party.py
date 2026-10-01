@@ -37,3 +37,15 @@ def test_music_dips_while_someone_speaks():
     voice[SR // 2 : SR] = 0.5  # speech from 0.5 to 1.0 s
     ducked = party.duck(music, voice, SR, depth=0.6)
     assert ducked[int(0.75 * SR)] < 0.6 and ducked[int(1.8 * SR)] > 0.95
+
+
+def test_effects_keep_the_frame_size_and_draw_captions():
+    from app.core import effects
+
+    frames = np.full((30, 120, 160, 3), 100, dtype=np.uint8)  # 1 s of flat grey at 30 fps
+    words = [("hello", 0.2, 0.6)]
+    out = effects.apply(frames, fps=30, bpm=120, beats=4, words=words, captions=True, motion=False)
+    assert out.shape == frames.shape
+    assert np.abs(out[10].astype(int) - 100).max() > 50  # caption drawn while the word is on
+    still = effects.apply(frames, fps=30, bpm=120, beats=4, words=words, captions=False, motion=False)
+    assert np.array_equal(still, frames)  # nothing switched on: untouched

@@ -8,7 +8,7 @@ import numpy as np
 import soundfile as sf
 
 from app import config
-from app.core import media, party
+from app.core import effects, media, party
 from app.core.aligner import Alignment
 from app.core.phonetics import Phone
 from app.core.splice import Span
@@ -124,15 +124,19 @@ def _load_audio(norm: media.Normalised) -> tuple[np.ndarray, int]:
     return (audio.mean(axis=1) if audio.ndim > 1 else audio), sr
 
 
-def render(spans: list[Span], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path) -> Path:
+def render(
+    spans: list[Span], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path,
+    frames: np.ndarray | None = None,
+) -> Path:
+    """`frames`: the recording's frames if already read (shared with the party render)."""
     audio, sr = _load_audio(norm)
     # Alignment was done on the 16 kHz file; times are in seconds so they carry over.
     segs = segments_for(spans, alignment, audio, sr)
     stitched = _stitch(segs, audio, sr)
     out_wav = workdir / "stitched.wav"
     sf.write(out_wav, stitched, sr)
-    frames = _frames(segs, media.read_frames(norm.video), len(stitched) / sr)
-    media.write_video(frames, out_wav, out, workdir)
+    source = frames if frames is not None else media.read_frames(norm.video)
+    media.write_video(_frames(segs, source, len(stitched) / sr), out_wav, out, workdir)
     return out
 
 
@@ -146,7 +150,8 @@ class PartyInfo:
 
 
 def render_party(
-    spans: list[Span], target: list[Phone], alignment: Alignment, norm: media.Normalised, out: Path, workdir: Path
+    spans: list[Span], target: list[Phone], target_words: list[str], alignment: Alignment,
+    norm: media.Normalised, out: Path, workdir: Path, source_frames: np.ndarray | None = None,
 ) -> PartyInfo:
     """The party version: each word of the sentence starts on a beat of a generated dance track."""
     audio, sr = _load_audio(norm)
@@ -174,6 +179,11 @@ def render_party(
 
     out_wav = workdir / "party.wav"
     sf.write(out_wav, mix, sr)
-    frames = _frames(segs, media.read_frames(norm.video), len(mix) / sr)
+    source = source_frames if source_frames is not None else media.read_frames(norm.video)
+    frames = _frames(segs, source, len(mix) / sr)
+    if config.PARTY_EFFECTS or config.PARTY_CAPTIONS:
+        captions = [(target_words[sl.word_index], sl.start_s, sl.end_s) for sl in slots]
+        frames = effects.apply(frames, config.FPS, config.PARTY_BPM, beats, captions,
+                               captions=config.PARTY_CAPTIONS, motion=config.PARTY_EFFECTS)
     media.write_video(frames, out_wav, out, workdir)
     return PartyInfo(config.PARTY_BPM, beats, slots)
